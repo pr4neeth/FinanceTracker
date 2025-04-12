@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import multer from "multer";
 import { analyzeReceipt, categorizeTransaction, generateFinancialAdvice, predictExpenses, suggestSavings } from "./openai";
+import { checkBudgetAlerts } from "./budget-alerts";
 import { financialAdviceRequestSchema, insertBillSchema, insertBudgetSchema, clientBudgetSchema, insertCategorySchema, insertGoalSchema, insertTransactionSchema, receiptSchema } from "@shared/schema";
 import { z } from "zod";
 import { ValidationError } from "zod-validation-error";
@@ -292,10 +293,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Transaction created successfully:", transaction);
         
         // Check budget alerts after creating a transaction (runs asynchronously)
-        import('./budget-alerts').then(({ checkBudgetAlerts }) => {
+        try {
+          // Import directly at the top of the file to avoid dynamic import issues
+          const { checkBudgetAlerts } = require('./budget-alerts');
+          
+          console.log('About to check budget alerts for transaction:', {
+            categoryId: transaction.categoryId,
+            amount: transaction.amount,
+            userId: req.user.id
+          });
+          
           checkBudgetAlerts(storage, transaction, req.user.id)
+            .then(() => console.log('Budget alert check completed'))
             .catch(err => console.error('Error checking budget alerts:', err));
-        }).catch(err => console.error('Error importing budget-alerts:', err));
+        } catch (alertError) {
+          console.error('Error running budget alerts check:', alertError);
+        }
         
         res.status(201).json(transaction);
       } catch (dbError) {

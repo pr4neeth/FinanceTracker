@@ -11,6 +11,8 @@ import BudgetsPage from "@/pages/budgets-page";
 import BillsPage from "@/pages/bills-page";
 import AiInsightsPage from "@/pages/ai-insights-page";
 import { AuthProvider, useAuth } from "./hooks/use-simple-auth";
+import { BudgetAlertsProvider, useBudgetAlerts } from "./hooks/use-budget-alerts";
+import { BudgetAlertContainer } from "./components/UI/BudgetAlertBanner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import "./index.css";
@@ -20,7 +22,9 @@ function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {children}
+        <BudgetAlertsProvider>
+          {children}
+        </BudgetAlertsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
@@ -82,6 +86,8 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 // Main app with full routes
 function App() {
+  const { alerts, dismissAlert } = useBudgetAlerts();
+  
   return (
     <Providers>
       <Switch>
@@ -125,6 +131,9 @@ function App() {
           <NotFound />
         </Route>
       </Switch>
+      
+      {/* Display budget alerts */}
+      <BudgetAlertContainer alerts={alerts} onDismiss={dismissAlert} />
       
       <Toaster />
     </Providers>
