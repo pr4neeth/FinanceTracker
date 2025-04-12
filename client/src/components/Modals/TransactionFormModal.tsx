@@ -124,13 +124,18 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
   // Handle form submission
   function onSubmit(data: TransactionFormValues) {
     // Add the current user ID to the transaction
+    console.log("Form submitted with data:", data);
+    console.log("Current user:", user);
+    
     if (user) {
       const dataWithUserId = {
         ...data,
         userId: user.id,
       };
+      console.log("Sending data to API:", dataWithUserId);
       createTransactionMutation.mutate(dataWithUserId);
     } else {
+      console.error("No user found when submitting transaction");
       toast({
         title: "Authentication error",
         description: "You must be logged in to add transactions",
