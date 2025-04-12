@@ -119,20 +119,9 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         
         console.log("Submitting transaction data:", apiData);
         
-        // Direct fetch with credentials instead of using apiRequest
-        const res = await fetch("/api/transactions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(apiData),
-          credentials: "include"
-        });
-        
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Error ${res.status}: ${errorText}`);
-        }
+        // Use apiRequest helper for consistency
+        const res = await apiRequest("POST", "/api/transactions", apiData);
+        console.log("Transaction API response:", res);
         
         return await res.json();
       } catch (err) {
@@ -166,12 +155,20 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
     console.log("Current user:", user);
     
     if (user) {
-      const dataWithUserId = {
-        ...data,
-        userId: user.id,
-      };
-      console.log("Sending data to API:", dataWithUserId);
-      createTransactionMutation.mutate(dataWithUserId);
+      // The server automatically adds the userId from the session
+      // so we don't need to pass it here
+      console.log("Sending data to API:", data);
+      
+      try {
+        createTransactionMutation.mutate(data);
+      } catch (error) {
+        console.error("Mutation execution error:", error);
+        toast({
+          title: "Error adding transaction",
+          description: error instanceof Error ? error.message : "Unknown error occurred",
+          variant: "destructive",
+        });
+      }
     } else {
       console.error("No user found when submitting transaction");
       toast({
