@@ -455,6 +455,10 @@ export default function AiInsightsPage() {
                   Our AI has analyzed your spending patterns to identify potential ways to save money.
                 </p>
                 
+                {aiSavingsDisabled && (
+                  <AIDisabledAlert feature="Savings opportunities" />
+                )}
+                
                 {suggestionsLoading ? (
                   <div className="flex justify-center items-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
