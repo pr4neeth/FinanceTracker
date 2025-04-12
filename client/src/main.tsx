@@ -3,9 +3,13 @@ import { createRoot } from "react-dom/client";
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { Loader2 } from "lucide-react";
-import SimpleHomePage from "@/pages/simple-home";
+import HomePage from "@/pages/home-page";
 import SimpleAuthPage from "@/pages/simple-auth";
 import NotFound from "@/pages/not-found";
+import TransactionsPage from "@/pages/transactions-page";
+import BudgetsPage from "@/pages/budgets-page";
+import BillsPage from "@/pages/bills-page";
+import AiInsightsPage from "@/pages/ai-insights-page";
 import { AuthProvider, useAuth } from "./hooks/use-simple-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -76,7 +80,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Main app with simplified routes
+// Main app with full routes
 function App() {
   return (
     <Providers>
@@ -89,7 +93,31 @@ function App() {
         
         <Route path="/">
           <ProtectedRoute>
-            <SimpleHomePage />
+            <HomePage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/transactions">
+          <ProtectedRoute>
+            <TransactionsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/budgets">
+          <ProtectedRoute>
+            <BudgetsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/bills">
+          <ProtectedRoute>
+            <BillsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/insights">
+          <ProtectedRoute>
+            <AiInsightsPage />
           </ProtectedRoute>
         </Route>
         

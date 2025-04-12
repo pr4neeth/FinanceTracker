@@ -4,7 +4,7 @@ import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
 import ReceiptScannerModal from "@/components/Modals/ReceiptScannerModal";
 import AddTransactionMenu from "@/components/Modals/AddTransactionMenu";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-simple-auth";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
