@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-simple-auth";
+import { useBudgetAlerts } from "@/hooks/use-budget-alerts";
 import Header from "@/components/Layout/Header";
 import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
@@ -14,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { addBudgetAlert } = useBudgetAlerts();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [receiptScannerOpen, setReceiptScannerOpen] = useState(false);
   const [addTransactionMenuOpen, setAddTransactionMenuOpen] = useState(false);
@@ -30,6 +32,30 @@ export default function HomePage() {
   };
   
   const closeReceiptScanner = () => setReceiptScannerOpen(false);
+  
+  // Fetch budget alerts from the server
+  const { data: budgetAlerts } = useQuery({
+    queryKey: ["/api/budgets/alerts"],
+    queryFn: async () => {
+      const response = await fetch("/api/budgets/alerts");
+      if (!response.ok) throw new Error("Failed to fetch budget alerts");
+      return await response.json();
+    }
+  });
+  
+  // Process alerts when they're loaded
+  useEffect(() => {
+    if (budgetAlerts && budgetAlerts.length > 0) {
+      budgetAlerts.forEach((alert: any) => {
+        addBudgetAlert(
+          alert.categoryName,
+          alert.budgetAmount,
+          alert.spentAmount,
+          alert.isExceeded
+        );
+      });
+    }
+  }, [budgetAlerts, addBudgetAlert]);
 
   // Get current date information
   const currentDate = new Date();

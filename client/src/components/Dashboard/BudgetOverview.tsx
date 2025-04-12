@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useBudgetAlerts } from "@/hooks/use-budget-alerts";
 
 interface Budget {
   id: number;
@@ -27,6 +28,7 @@ interface BudgetOverviewProps {
 
 export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewProps) {
   const [_, navigate] = useLocation();
+  const { addBudgetAlert } = useBudgetAlerts();
 
   // Fetch budget spending data
   const { data: budgetSpending } = useQuery({
@@ -137,12 +139,35 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
               );
             })}
             
-            <Button 
-              className="w-full mt-4"
-              onClick={() => navigate("/budgets")}
-            >
-              Adjust Budgets
-            </Button>
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Button 
+                className="w-full"
+                onClick={() => navigate("/budgets")}
+              >
+                Adjust Budgets
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => {
+                  if (sortedBudgets && sortedBudgets.length > 0 && categories) {
+                    const budget = sortedBudgets[0];
+                    const category = categories.find((c: any) => c.id === budget.categoryId);
+                    const categoryName = category ? category.name : `Category ${budget.categoryId}`;
+                    const spentAmount = getSpendingAmount(budget);
+                    
+                    addBudgetAlert(
+                      categoryName,
+                      budget.amount,
+                      spentAmount,
+                      spentAmount > budget.amount
+                    );
+                  }
+                }}
+              >
+                Test Alert
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
