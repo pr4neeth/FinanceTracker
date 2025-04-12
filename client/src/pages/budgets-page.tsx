@@ -183,11 +183,29 @@ export default function BudgetsPage() {
     setIsDialogOpen(true);
   };
 
-  // Function to calculate the budget progress
+  // Fetch budget spending data
+  const { data: budgetSpending, isLoading: spendingLoading } = useQuery({
+    queryKey: ["/api/budgets/spending"],
+    queryFn: async () => {
+      const response = await fetch("/api/budgets/spending");
+      if (!response.ok) throw new Error("Failed to fetch budget spending");
+      return await response.json();
+    }
+  });
+
+  // Function to calculate the budget progress using actual spending data
   const calculateProgress = (budget) => {
-    // In a real app, you would calculate this based on actual spending data
-    // For now, return a random value between 0 and 120 to show different states
-    return Math.floor(Math.random() * 120);
+    if (!budgetSpending) return 0;
+    
+    // Find the spending for this budget's category
+    const spending = budgetSpending.find(
+      item => item.categoryId === budget.categoryId
+    );
+    
+    if (!spending) return 0;
+    
+    // Calculate percentage of budget used
+    return Math.round((spending.spent / budget.amount) * 100);
   };
 
   const getCategoryName = (categoryId) => {

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 interface Budget {
   id: number;
@@ -27,11 +28,43 @@ interface BudgetOverviewProps {
 export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewProps) {
   const [_, navigate] = useLocation();
 
-  // In a real app, we would fetch the actual spending for each budget category
-  // Here we'll simulate it with random percentages for demonstration
+  // Fetch budget spending data
+  const { data: budgetSpending } = useQuery({
+    queryKey: ["/api/budgets/spending"],
+    queryFn: async () => {
+      const response = await fetch("/api/budgets/spending");
+      if (!response.ok) throw new Error("Failed to fetch budget spending");
+      return await response.json();
+    }
+  });
+  
+  // Fetch categories
+  const { data: categories } = useQuery({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return await response.json();
+    }
+  });
+  
+  // Get category name from ID
+  const getCategoryName = (categoryId: number) => {
+    if (!categories) return "Loading...";
+    const category = categories.find((c: any) => c.id === categoryId);
+    return category ? category.name : `Category ${categoryId}`;
+  };
+
+  // Get actual spending for each budget category
   const getSpendingAmount = (budget: Budget) => {
-    const percentage = Math.random();
-    return budget.amount * (percentage > 1 ? 1 : percentage);
+    if (!budgetSpending) return 0;
+    
+    // Find the spending for this budget's category
+    const spending = budgetSpending.find(
+      (item: any) => item.categoryId === budget.categoryId
+    );
+    
+    return spending ? spending.spent : 0;
   };
 
   const getBudgetPercentage = (budget: Budget) => {
@@ -82,8 +115,7 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
                 <div key={budget.id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium text-neutral-700">
-                      {/* In a real app, we would look up the category name */}
-                      {`Category ${budget.categoryId}`}
+                      {getCategoryName(budget.categoryId)}
                     </span>
                     <span className="text-neutral-700">
                       ${spentAmount.toFixed(2)} / ${budget.amount.toFixed(2)}

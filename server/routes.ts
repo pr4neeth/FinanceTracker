@@ -356,6 +356,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+  
+  // Get budget spending - calculate how much has been spent for each budget category
+  app.get("/api/budgets/spending", requireAuth, async (req, res, next) => {
+    try {
+      // Get budget period details (default to current month)
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      // Get transactions from the current month
+      const transactions = await storage.getTransactionsByDateRange(
+        req.user.id,
+        startOfMonth,
+        endOfMonth
+      );
+      
+      // Get categories for this user
+      const categories = await storage.getCategoriesByUserId(req.user.id);
+      
+      // Get budgets
+      const budgets = await storage.getBudgetsByUserId(req.user.id);
+      
+      // Calculate spending by category
+      const categorySpending = {};
+      
+      // Initialize spending for all budget categories to 0
+      for (const budget of budgets) {
+        categorySpending[budget.categoryId] = 0;
+      }
+      
+      // Add up all transactions for each category
+      for (const transaction of transactions) {
+        // Skip income transactions
+        if (transaction.isIncome) continue;
+        
+        // Only consider transactions with a category that has a budget
+        if (transaction.categoryId && categorySpending[transaction.categoryId] !== undefined) {
+          categorySpending[transaction.categoryId] += transaction.amount;
+        }
+      }
+      
+      // Format response
+      const result = Object.entries(categorySpending).map(([categoryId, spent]) => ({
+        categoryId: parseInt(categoryId),
+        spent: spent
+      }));
+      
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.post("/api/budgets", requireAuth, validateBody(clientBudgetSchema), async (req, res, next) => {
     try {
