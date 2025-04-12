@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { File, Camera, X, Receipt } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import AIDisabledAlert from "@/components/UI/AIDisabledAlert";
 
 interface ReceiptScannerModalProps {
   isOpen: boolean;
@@ -16,12 +17,13 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [aiDisabled, setAiDisabled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Recent receipts - in a real app, these would be fetched from the API
-  const recentReceipts = []; // Could be populated from an API call
+  const recentReceipts: any[] = []; // Could be populated from an API call
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
