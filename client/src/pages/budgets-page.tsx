@@ -145,10 +145,16 @@ export default function BudgetsPage() {
   });
 
   const onSubmit = (data) => {
+    // Process data to handle "none" value for categoryId
+    const processedData = {
+      ...data,
+      categoryId: data.categoryId && data.categoryId !== "none" ? parseInt(data.categoryId) : undefined
+    };
+    
     if (selectedBudget) {
-      updateBudgetMutation.mutate(data);
+      updateBudgetMutation.mutate(processedData);
     } else {
-      createBudgetMutation.mutate(data);
+      createBudgetMutation.mutate(processedData);
     }
   };
 
@@ -168,7 +174,7 @@ export default function BudgetsPage() {
   const openNewBudgetDialog = () => {
     setSelectedBudget(null);
     form.reset({
-      categoryId: "",
+      categoryId: "none",
       amount: "",
       period: "monthly",
       startDate: new Date(),
@@ -354,6 +360,7 @@ export default function BudgetsPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
                         {categories?.map(category => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}

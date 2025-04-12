@@ -7,9 +7,10 @@ interface AddTransactionMenuProps {
   onToggle: () => void;
   onClose: () => void;
   onScanReceipt: () => void;
+  onAddManually?: () => void;
 }
 
-export default function AddTransactionMenu({ isOpen, onToggle, onClose, onScanReceipt }: AddTransactionMenuProps) {
+export default function AddTransactionMenu({ isOpen, onToggle, onClose, onScanReceipt, onAddManually }: AddTransactionMenuProps) {
   const handleLinkClick = (action: () => void) => {
     onClose();
     action();
