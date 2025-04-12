@@ -3,54 +3,89 @@ import { createRoot } from "react-dom/client";
 import { Switch, Route, Router } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
-import HomePage from "@/pages/home-page";
+import SimpleHomePage from "@/pages/simple-home";
 import AuthPage from "@/pages/auth-page";
-import TransactionsPage from "@/pages/transactions-page";
-import BudgetsPage from "@/pages/budgets-page";
-import BillsPage from "@/pages/bills-page";
-import AiInsightsPage from "@/pages/ai-insights-page";
-import { AuthProvider } from "./hooks/use-auth";
+import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
+import { Loader2 } from "lucide-react";
 import "./index.css";
 
-// Create a wrapper component for each page that will be wrapped in the AuthProvider
-function withAuth(Component: React.ComponentType) {
-  return function WithAuth(props: any) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Component {...props} />
-        </AuthProvider>
-      </QueryClientProvider>
-    );
-  };
+// Create a centralized provider component that will wrap the entire app
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }
 
-// Wrap each component that needs auth
-const AuthenticatedHomePage = withAuth(HomePage);
-const AuthenticatedAuthPage = withAuth(AuthPage);
-const AuthenticatedTransactionsPage = withAuth(TransactionsPage);
-const AuthenticatedBudgetsPage = withAuth(BudgetsPage);
-const AuthenticatedBillsPage = withAuth(BillsPage);
-const AuthenticatedAiInsightsPage = withAuth(AiInsightsPage);
-const AuthenticatedNotFound = withAuth(NotFound);
+// Create a wrapper for protected routes that checks authentication
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    window.location.href = "/auth";
+    return null;
+  }
+  
+  return <>{children}</>;
+}
 
-// Main app
+// Create a wrapper for the auth page that redirects when logged in
+function AuthRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (user) {
+    window.location.href = "/";
+    return null;
+  }
+  
+  return <>{children}</>;
+}
+
+// Main app with simplified routing
 function App() {
   return (
-    <>
+    <Providers>
       <Switch>
-        <Route path="/auth" component={AuthenticatedAuthPage} />
-        <Route path="/" component={AuthenticatedHomePage} />
-        <Route path="/transactions" component={AuthenticatedTransactionsPage} />
-        <Route path="/budgets" component={AuthenticatedBudgetsPage} />
-        <Route path="/bills" component={AuthenticatedBillsPage} />
-        <Route path="/insights" component={AuthenticatedAiInsightsPage} />
-        <Route component={AuthenticatedNotFound} />
+        <Route path="/auth">
+          <AuthRoute>
+            <AuthPage />
+          </AuthRoute>
+        </Route>
+        
+        <Route path="/">
+          <ProtectedRoute>
+            <SimpleHomePage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route>
+          <NotFound />
+        </Route>
       </Switch>
+      
       <Toaster />
-    </>
+    </Providers>
   );
 }
 
