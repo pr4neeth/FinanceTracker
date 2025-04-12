@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { 
   LayoutDashboard, 
   ArrowRightLeft, 
@@ -23,7 +23,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activePage, isMobile = false, onClose }: SidebarProps) {
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
   const { logoutMutation } = useAuth();
 
   // Navigation items structure

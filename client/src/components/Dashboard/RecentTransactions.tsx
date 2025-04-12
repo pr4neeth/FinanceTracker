@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ShoppingCart, Film, Utensils, Car, Briefcase, Gift, Building } from "lucide-react";
@@ -22,7 +22,7 @@ interface RecentTransactionsProps {
 }
 
 export default function RecentTransactions({ transactions, isLoading, className }: RecentTransactionsProps) {
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
 
   // Fetch categories for displaying category names
   const { data: categories } = useQuery({

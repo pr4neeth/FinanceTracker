@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Lightbulb, PiggyBank, BellRing } from "lucide-react";
@@ -26,7 +26,7 @@ interface AiInsightsProps {
 }
 
 export default function AiInsights({ insights, isLoading }: AiInsightsProps) {
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
 
   // Mark insight as read mutation
   const markAsReadMutation = useMutation({

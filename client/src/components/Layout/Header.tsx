@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   toggleMobileMenu: () => void;
@@ -31,7 +31,7 @@ interface HeaderProps {
 
 export default function Header({ toggleMobileMenu, username }: HeaderProps) {
   const { logoutMutation } = useAuth();
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
   
   // Get initial display name (first letter of each word up to 2 letters)
   const getInitials = (name: string) => {

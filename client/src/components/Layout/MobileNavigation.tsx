@@ -1,4 +1,4 @@
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { 
   LayoutDashboard, 
   ArrowRightLeft, 
@@ -14,7 +14,7 @@ interface MobileNavigationProps {
 }
 
 export default function MobileNavigation({ activePage }: MobileNavigationProps) {
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Navigation items for the mobile bottom bar

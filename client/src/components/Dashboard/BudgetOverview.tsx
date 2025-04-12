@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 interface Budget {
   id: number;
@@ -25,7 +25,7 @@ interface BudgetOverviewProps {
 }
 
 export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewProps) {
-  const [_, navigate] = useNavigate();
+  const [_, navigate] = useLocation();
 
   // In a real app, we would fetch the actual spending for each budget category
   // Here we'll simulate it with random percentages for demonstration

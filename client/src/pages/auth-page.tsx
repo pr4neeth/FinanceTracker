@@ -1,4 +1,4 @@
-import { useAuth, useLoginForm, useRegisterForm } from "@/hooks/use-auth";
+import { useLoginForm, useRegisterForm } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartLine, LockKeyhole, User, Mail, LockKeyholeOpen } from "lucide-react";
-import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import {
@@ -24,27 +23,71 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { type User as SelectUser } from "@shared/schema";
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
   const [location, navigate] = useLocation();
+  const { toast } = useToast();
 
   const loginForm = useForm(useLoginForm());
   const registerForm = useForm(useRegisterForm());
 
-  const onLogin = (data) => {
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const res = await apiRequest("POST", "/api/login", credentials);
+      return await res.json();
+    },
+    onSuccess: (user: SelectUser) => {
+      queryClient.setQueryData(["/api/user"], user);
+      toast({
+        title: "Login successful",
+        description: `Welcome back, ${user.username}!`,
+      });
+      navigate("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Remove confirmPassword before sending to API
+      const { confirmPassword, ...userData } = data;
+      const res = await apiRequest("POST", "/api/register", userData);
+      return await res.json();
+    },
+    onSuccess: (user: SelectUser) => {
+      queryClient.setQueryData(["/api/user"], user);
+      toast({
+        title: "Registration successful",
+        description: `Welcome, ${user.username}!`,
+      });
+      navigate("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Registration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onLogin = (data: any) => {
     loginMutation.mutate(data);
   };
 
-  const onRegister = (data) => {
+  const onRegister = (data: any) => {
     registerMutation.mutate(data);
   };
-
-  useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
-  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col lg:flex-row">
