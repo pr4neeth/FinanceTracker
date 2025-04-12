@@ -203,7 +203,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/transactions", requireAuth, async (req, res, next) => {
     console.log("Received transaction create request:", req.body);
+    console.log("Authentication status:", req.isAuthenticated());
+    console.log("Session information:", req.session);
+    console.log("User information:", req.user);
+    
     try {
+      if (!req.isAuthenticated() || !req.user) {
+        console.error("User not authenticated when creating transaction");
+        return res.status(401).json({ message: "You must be logged in to add transactions" });
+      }
+      
       // First, manually validate the body
       const validation = insertTransactionSchema.safeParse(req.body);
       if (!validation.success) {
@@ -216,71 +225,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use the validated data for the next steps
       const validatedBody = validation.data;
+      console.log("Validated data:", validatedBody);
       
-      // Try to categorize with AI if no category is provided
+      // Try to categorize with AI if no category is provided (disabled to simplify)
       let categoryId = validatedBody.categoryId;
-      if (!categoryId && validatedBody.description) {
-        try {
-          const { category, confidence } = await categorizeTransaction(
-            validatedBody.description,
-            validatedBody.amount
-          );
-          
-          // Find or create the category
-          const existingCategories = await storage.getCategoriesByUserId(req.user.id);
-          const matchedCategory = existingCategories.find(
-            c => c.name.toLowerCase() === category.toLowerCase()
-          );
-          
-          if (matchedCategory) {
-            categoryId = matchedCategory.id;
-          } else {
-            // Create a new category
-            const colorOptions = [
-              "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
-              "#EC4899", "#14B8A6", "#F97316", "#A855F7", "#06B6D4"
-            ];
-            const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)];
-            
-            // Default icon based on category
-            let icon = "tag";
-            if (category.toLowerCase().includes("food") || category.toLowerCase().includes("groceries")) {
-              icon = "shopping-basket";
-            } else if (category.toLowerCase().includes("dining")) {
-              icon = "utensils";
-            } else if (category.toLowerCase().includes("transport")) {
-              icon = "car";
-            } else if (category.toLowerCase().includes("entertainment")) {
-              icon = "film";
-            }
-            
-            const newCategory = await storage.createCategory({
-              name: category,
-              icon,
-              color: randomColor,
-              userId: req.user.id
-            });
-            
-            categoryId = newCategory.id;
-          }
-        } catch (err) {
-          // If AI categorization fails, continue without a category
-          console.error("Error categorizing transaction:", err);
-        }
-      }
       
-      // Create the transaction
-      const transaction = await storage.createTransaction({
-        ...validatedBody,
-        categoryId,
+      // Create the transaction - SIMPLIFIED VERSION
+      const transactionData = {
+        description: validatedBody.description,
+        amount: validatedBody.amount,
+        date: validatedBody.date,
+        categoryId: categoryId,
+        isIncome: validatedBody.isIncome || false,
+        notes: validatedBody.notes || null,
         userId: req.user.id
-      });
+      };
       
-      console.log("Transaction created:", transaction);
-      res.status(201).json(transaction);
+      console.log("About to create transaction with data:", transactionData);
+      
+      try {
+        const transaction = await storage.createTransaction(transactionData);
+        console.log("Transaction created successfully:", transaction);
+        res.status(201).json(transaction);
+      } catch (dbError) {
+        console.error("Database error creating transaction:", dbError);
+        res.status(500).json({ 
+          message: "Database error when creating transaction", 
+          error: dbError instanceof Error ? dbError.message : String(dbError) 
+        });
+      }
     } catch (error) {
       console.error("Error creating transaction:", error);
-      next(error);
+      res.status(500).json({ 
+        message: "Error creating transaction", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

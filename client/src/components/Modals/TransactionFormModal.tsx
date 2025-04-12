@@ -119,11 +119,33 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         
         console.log("Submitting transaction data:", apiData);
         
-        // Use apiRequest helper for consistency
-        const res = await apiRequest("POST", "/api/transactions", apiData);
-        console.log("Transaction API response:", res);
+        // Try a direct fetch approach instead of apiRequest
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(apiData),
+          credentials: "include"
+        });
         
-        return await res.json();
+        if (!res.ok) {
+          // Improved error handling
+          let errorMessage = "";
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.message || `HTTP error ${res.status}`;
+            console.error("Server error response:", errorData);
+          } catch {
+            errorMessage = `HTTP error ${res.status}: ${res.statusText}`;
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        const responseData = await res.json();
+        console.log("Transaction API response:", responseData);
+        return responseData;
       } catch (err) {
         console.error("Transaction submission error:", err);
         throw err;
