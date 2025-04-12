@@ -17,6 +17,48 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+  
+  // Debug route for testing
+  app.get("/api/debug/test-transaction", async (req, res) => {
+    try {
+      console.log("Debug test transaction route called");
+      
+      // Create a test transaction directly in the database
+      const testTransaction = {
+        description: "Debug Test Transaction",
+        amount: 25.99,
+        date: new Date().toISOString().split('T')[0],
+        userId: 1, // Hardcoded for testing
+        isIncome: false
+      };
+      
+      console.log("Creating test transaction:", testTransaction);
+      
+      try {
+        const newTransaction = await storage.createTransaction(testTransaction);
+        console.log("Test transaction created successfully:", newTransaction);
+        res.json({
+          success: true,
+          message: "Test transaction created successfully",
+          transaction: newTransaction
+        });
+      } catch (dbError) {
+        console.error("Database error creating test transaction:", dbError);
+        res.status(500).json({
+          success: false,
+          message: "Database error creating test transaction",
+          error: dbError instanceof Error ? dbError.message : String(dbError)
+        });
+      }
+    } catch (error) {
+      console.error("Error in debug test route:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error in debug test route",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // Check if a user is authenticated
   const requireAuth = (req, res, next) => {
