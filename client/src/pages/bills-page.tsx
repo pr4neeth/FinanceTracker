@@ -98,7 +98,7 @@ export default function BillsPage() {
       amount: "",
       dueDate: new Date(),
       frequency: "monthly",
-      categoryId: "",
+      categoryId: "none",
       isPaid: false,
       autoPayEnabled: false,
       reminderDays: "3"
@@ -191,7 +191,7 @@ export default function BillsPage() {
     // If categoryId is an empty string, convert to undefined
     const processedData = {
       ...data,
-      categoryId: data.categoryId ? parseInt(data.categoryId) : undefined
+      categoryId: data.categoryId && data.categoryId !== "none" ? parseInt(data.categoryId) : undefined
     };
 
     if (selectedBill) {
@@ -208,7 +208,7 @@ export default function BillsPage() {
       amount: bill.amount.toString(),
       dueDate: new Date(bill.dueDate),
       frequency: bill.frequency,
-      categoryId: bill.categoryId ? bill.categoryId.toString() : "",
+      categoryId: bill.categoryId ? bill.categoryId.toString() : "none",
       isPaid: bill.isPaid,
       autoPayEnabled: bill.autoPayEnabled,
       reminderDays: bill.reminderDays.toString()
@@ -223,7 +223,7 @@ export default function BillsPage() {
       amount: "",
       dueDate: new Date(),
       frequency: "monthly",
-      categoryId: "",
+      categoryId: "none",
       isPaid: false,
       autoPayEnabled: false,
       reminderDays: "3"
@@ -637,7 +637,7 @@ export default function BillsPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {categories?.map(category => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
