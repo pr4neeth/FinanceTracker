@@ -5,6 +5,7 @@ import MobileNavigation from "@/components/Layout/MobileNavigation";
 import { useAuth } from "@/hooks/use-simple-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import AIDisabledAlert from "@/components/UI/AIDisabledAlert";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -87,11 +88,18 @@ export default function AiInsightsPage() {
   });
 
   // Fetch expense predictions
-  const { data: predictions, isLoading: predictionsLoading } = useQuery({
+  const { data: predictions, isLoading: predictionsLoading, error: predictionsError } = useQuery({
     queryKey: ["/api/predict-expenses"],
     queryFn: async () => {
       const response = await fetch("/api/predict-expenses");
-      if (!response.ok) throw new Error("Failed to fetch expense predictions");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 402 && errorData.error === "QUOTA_EXCEEDED") {
+          setAiPredictionsDisabled(true);
+          throw new Error("OpenAI API quota exceeded");
+        }
+        throw new Error("Failed to fetch expense predictions");
+      }
       return await response.json();
     }
   });
@@ -101,7 +109,14 @@ export default function AiInsightsPage() {
     queryKey: ["/api/saving-suggestions"],
     queryFn: async () => {
       const response = await fetch("/api/saving-suggestions");
-      if (!response.ok) throw new Error("Failed to fetch saving suggestions");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 402 && errorData.error === "QUOTA_EXCEEDED") {
+          setAiSavingsDisabled(true);
+          throw new Error("OpenAI API quota exceeded");
+        }
+        throw new Error("Failed to fetch saving suggestions");
+      }
       return await response.json();
     }
   });
@@ -118,6 +133,8 @@ export default function AiInsightsPage() {
 
   // State for AI disabled status
   const [aiAdviceDisabled, setAiAdviceDisabled] = useState(false);
+  const [aiPredictionsDisabled, setAiPredictionsDisabled] = useState(false);
+  const [aiSavingsDisabled, setAiSavingsDisabled] = useState(false);
   
   // Get financial advice mutation
   const getAdviceMutation = useMutation({
@@ -319,6 +336,10 @@ export default function AiInsightsPage() {
                 <p className="text-neutral-600">
                   Based on your spending patterns, here's what our AI predicts you'll spend in each category next month.
                 </p>
+                
+                {aiPredictionsDisabled && (
+                  <AIDisabledAlert feature="Expense predictions" />
+                )}
                 
                 {predictionsLoading ? (
                   <div className="flex justify-center items-center py-12">
@@ -563,6 +584,11 @@ export default function AiInsightsPage() {
                       <span>Updated {format(new Date(), "MMMM d, yyyy")}</span>
                     </CardDescription>
                   </CardHeader>
+                  {aiAdviceDisabled && (
+                    <CardContent className="pt-0">
+                      <AIDisabledAlert feature="Financial advice" />
+                    </CardContent>
+                  )}
                   <CardContent>
                     {getAdviceMutation.data ? (
                       <div className="prose prose-sm max-w-none">
