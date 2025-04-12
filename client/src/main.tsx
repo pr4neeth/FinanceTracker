@@ -1,5 +1,6 @@
+import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { Switch, Route, Router, Redirect, useLocation } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
@@ -14,9 +15,22 @@ import { queryClient } from "./lib/queryClient";
 import { Loader2 } from "lucide-react";
 import "./index.css";
 
-// App component that handles routing based on auth state
-function AppRoutes() {
+// Redirect component using useLocation
+function Redirect({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+  
+  // Effect to navigate on render
+  useEffect(() => {
+    navigate(to);
+  }, [navigate, to]);
+  
+  return null;
+}
+
+// Routes component that uses the auth context
+function Routes() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   
   if (isLoading) {
     return (
@@ -26,44 +40,57 @@ function AppRoutes() {
     );
   }
   
+  // Handle redirection based on auth status and current location
+  if (!user && !location.startsWith('/auth')) {
+    return <Redirect to="/auth" />;
+  }
+  
+  if (user && location === '/auth') {
+    return <Redirect to="/" />;
+  }
+  
   return (
     <>
       <Switch>
-        {/* Public route */}
         <Route path="/auth">
-          {user ? <Redirect to="/" /> : <AuthPage />}
+          <AuthPage />
         </Route>
         
-        {/* Protected routes - only accessible when logged in */}
         <Route path="/">
-          {!user ? <Redirect to="/auth" /> : <HomePage />}
-        </Route>
-        <Route path="/transactions">
-          {!user ? <Redirect to="/auth" /> : <TransactionsPage />}
-        </Route>
-        <Route path="/budgets">
-          {!user ? <Redirect to="/auth" /> : <BudgetsPage />}
-        </Route>
-        <Route path="/bills">
-          {!user ? <Redirect to="/auth" /> : <BillsPage />}
-        </Route>
-        <Route path="/insights">
-          {!user ? <Redirect to="/auth" /> : <AiInsightsPage />}
+          <HomePage />
         </Route>
         
-        <Route component={NotFound} />
+        <Route path="/transactions">
+          <TransactionsPage />
+        </Route>
+        
+        <Route path="/budgets">
+          <BudgetsPage />
+        </Route>
+        
+        <Route path="/bills">
+          <BillsPage />
+        </Route>
+        
+        <Route path="/insights">
+          <AiInsightsPage />
+        </Route>
+        
+        <Route>
+          <NotFound />
+        </Route>
       </Switch>
       <Toaster />
     </>
   );
 }
 
-// Main application wrapper with providers
+// Main app with providers
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppRoutes />
+        <Routes />
       </AuthProvider>
     </QueryClientProvider>
   );
