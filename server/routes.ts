@@ -364,6 +364,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Budget alerts endpoint
+  app.get("/api/budgets/alerts", requireAuth, async (req, res, next) => {
+    try {
+      // Get current month's date range
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      // Get all transactions for this user in the current month
+      const transactions = await storage.getTransactionsByDateRange(
+        req.user.id,
+        startOfMonth,
+        endOfMonth
+      );
+      
+      // Get all budgets for this user
+      const budgets = await storage.getBudgetsByUserId(req.user.id);
+      
+      // Get categories for this user
+      const categories = await storage.getCategoriesByUserId(req.user.id);
+      
+      // Calculate spending by category
+      const categorySpending = {};
+      
+      // Initialize spending for all budget categories to 0
+      for (const budget of budgets) {
+        categorySpending[budget.categoryId] = 0;
+      }
+      
+      // Add up all transactions for each category
+      for (const transaction of transactions) {
+        // Skip income transactions
+        if (transaction.isIncome) continue;
+        
+        // Map the database field (category_id) to the code field (categoryId)
+        const categoryId = transaction.categoryId || transaction.category_id;
+        
+        // Only consider transactions with a category that has a budget
+        if (categoryId && categorySpending[categoryId] !== undefined) {
+          categorySpending[categoryId] += transaction.amount;
+        }
+      }
+      
+      // Check which budgets have alerts
+      const alerts = [];
+      
+      for (const budget of budgets) {
+        const categoryId = budget.categoryId;
+        const spent = categorySpending[categoryId] || 0;
+        const percentSpent = (spent / budget.amount) * 100;
+        const alertThreshold = budget.alertThreshold || 80;
+        
+        // Find the category name
+        const category = categories.find(c => c.id === categoryId);
+        if (!category) continue;
+        
+        if (percentSpent >= 100) {
+          // Budget exceeded
+          alerts.push({
+            categoryId,
+            categoryName: category.name,
+            budgetAmount: budget.amount,
+            spentAmount: spent,
+            percentSpent: Math.round(percentSpent),
+            alertThreshold,
+            isExceeded: true
+          });
+        } else if (percentSpent >= alertThreshold) {
+          // Alert threshold reached
+          alerts.push({
+            categoryId,
+            categoryName: category.name,
+            budgetAmount: budget.amount,
+            spentAmount: spent,
+            percentSpent: Math.round(percentSpent),
+            alertThreshold,
+            isExceeded: false
+          });
+        }
+      }
+      
+      res.json(alerts);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get budget spending - calculate how much has been spent for each budget category
   app.get("/api/budgets/spending", requireAuth, async (req, res, next) => {
     try {
