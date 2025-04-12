@@ -89,12 +89,44 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
   // Use fetched categories if available, otherwise use defaults
   const categories = fetchedCategories?.length > 0 ? fetchedCategories : defaultCategories;
 
+  // Fetch accounts with fallback defaults
+  const { data: fetchedAccounts, isLoading: accountsLoading } = useQuery({
+    queryKey: ["/api/accounts"],
+    queryFn: async () => {
+      const response = await fetch("/api/accounts", { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch accounts");
+      return await response.json();
+    }
+  });
+
+  // Use some default accounts if none are returned from the API
+  const defaultAccounts = [
+    { id: 1, name: "Checking Account", type: "checking", balance: 1500.00 },
+    { id: 2, name: "Savings Account", type: "savings", balance: 5000.00 },
+    { id: 3, name: "Credit Card", type: "credit", balance: -500.00 }
+  ];
+  
+  // Use fetched accounts if available, otherwise use defaults
+  const accounts = fetchedAccounts?.length > 0 ? fetchedAccounts : defaultAccounts;
+
+  // Define the transaction form type
+  type TransactionFormValues = {
+    description: string;
+    amount: string;
+    date: Date;
+    categoryId: string;
+    accountId: string;
+    isIncome: boolean;
+    notes: string;
+  };
+
   // Define default form values
-  const defaultValues: Partial<TransactionFormValues> = {
+  const defaultValues: TransactionFormValues = {
     description: "",
     amount: "",
     date: new Date(),
     categoryId: "none",
+    accountId: "1", // Default to first account
     isIncome: false,
     notes: "",
   };
@@ -114,6 +146,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
           ...data,
           amount: parseFloat(data.amount as string),
           categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
+          accountId: parseInt(data.accountId),
           date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
         };
         
@@ -244,6 +277,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         ...data,
         amount: parseFloat(data.amount as string),
         categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
+        accountId: parseInt(data.accountId),
         date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
       }),
       credentials: "include"
@@ -336,6 +370,35 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                       />
                     </div>
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="accountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Account</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={accountsLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an account" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {accounts?.map(account => (
+                        <SelectItem key={account.id} value={account.id.toString()}>
+                          {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
