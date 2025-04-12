@@ -3,6 +3,7 @@ import Header from "@/components/Layout/Header";
 import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
 import ReceiptScannerModal from "@/components/Modals/ReceiptScannerModal";
+import TransactionFormModal from "@/components/Modals/TransactionFormModal";
 import AddTransactionMenu from "@/components/Modals/AddTransactionMenu";
 import { useAuth } from "@/hooks/use-simple-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +67,7 @@ export default function TransactionsPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [receiptScannerOpen, setReceiptScannerOpen] = useState(false);
   const [addTransactionMenuOpen, setAddTransactionMenuOpen] = useState(false);
+  const [transactionFormOpen, setTransactionFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
@@ -81,7 +83,13 @@ export default function TransactionsPage() {
     setAddTransactionMenuOpen(false);
   };
   
+  const openManualTransactionForm = () => {
+    setTransactionFormOpen(true);
+    setAddTransactionMenuOpen(false);
+  };
+  
   const closeReceiptScanner = () => setReceiptScannerOpen(false);
+  const closeTransactionForm = () => setTransactionFormOpen(false);
   
   // Fetch transactions
   const { data: transactions, isLoading } = useQuery({
@@ -292,6 +300,7 @@ export default function TransactionsPage() {
           onToggle={toggleAddTransactionMenu}
           onClose={closeAddTransactionMenu}
           onScanReceipt={openReceiptScanner}
+          onAddManually={openManualTransactionForm}
         />
       </div>
       

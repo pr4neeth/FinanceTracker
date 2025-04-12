@@ -41,7 +41,7 @@ export default function AddTransactionMenu({ isOpen, onToggle, onClose, onScanRe
           </button>
           
           <button
-            onClick={() => handleLinkClick(() => {})} // Navigate to add transaction form
+            onClick={() => handleLinkClick(onAddManually || (() => {}))} 
             className="w-full px-4 py-3 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50 flex items-center transition-colors"
           >
             <Plus className="text-primary mr-3 h-5 w-5" />
