@@ -47,9 +47,11 @@ import { Calendar } from "@/components/ui/calendar";
 // Create a transaction form schema based on the insert schema
 const transactionFormSchema = insertTransactionSchema.extend({
   amount: z.string().min(1, "Amount is required"),
-  date: z.date(),
-  categoryId: z.string().min(1, "Category is required"),
-  notes: z.string().optional(),
+  date: z.date({
+    required_error: "Please select a date",
+  }),
+  categoryId: z.string(), // Allow "none" as a valid option
+  notes: z.string().optional().nullable(),
 });
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
@@ -64,15 +66,28 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Fetch categories
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
+  // Fetch categories with fallback defaults
+  const { data: fetchedCategories, isLoading: categoriesLoading } = useQuery({
     queryKey: ["/api/categories"],
     queryFn: async () => {
-      const response = await fetch("/api/categories");
+      const response = await fetch("/api/categories", { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch categories");
       return await response.json();
     }
   });
+
+  // Use some default categories if none are returned from the API
+  const defaultCategories = [
+    { id: 1, name: "Food & Groceries", icon: "shopping-cart", color: "#4CAF50" },
+    { id: 2, name: "Housing", icon: "home", color: "#2196F3" },
+    { id: 3, name: "Transportation", icon: "car", color: "#FFC107" },
+    { id: 4, name: "Entertainment", icon: "film", color: "#9C27B0" },
+    { id: 5, name: "Utilities", icon: "zap", color: "#FF5722" },
+    { id: 6, name: "Income", icon: "dollar-sign", color: "#00BFA5" }
+  ];
+  
+  // Use fetched categories if available, otherwise use defaults
+  const categories = fetchedCategories?.length > 0 ? fetchedCategories : defaultCategories;
 
   // Define default form values
   const defaultValues: Partial<TransactionFormValues> = {
@@ -93,15 +108,37 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
   // Create transaction mutation
   const createTransactionMutation = useMutation({
     mutationFn: async (data: TransactionFormValues) => {
-      // Convert values for API
-      const apiData = {
-        ...data,
-        amount: parseFloat(data.amount),
-        categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-      };
-      
-      const res = await apiRequest("POST", "/api/transactions", apiData);
-      return await res.json();
+      try {
+        // Convert values for API
+        const apiData = {
+          ...data,
+          amount: parseFloat(data.amount as string),
+          categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
+          date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
+        };
+        
+        console.log("Submitting transaction data:", apiData);
+        
+        // Direct fetch with credentials instead of using apiRequest
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(apiData),
+          credentials: "include"
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Error ${res.status}: ${errorText}`);
+        }
+        
+        return await res.json();
+      } catch (err) {
+        console.error("Transaction submission error:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       toast({
@@ -113,6 +150,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
       onClose();
     },
     onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Error adding transaction",
         description: error.message,
@@ -268,8 +306,8 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
                     <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
+                      checked={field.value || false}
+                      onCheckedChange={(checked) => field.onChange(!!checked)}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
@@ -289,7 +327,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                 <FormItem>
                   <FormLabel>Notes (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Add notes about this transaction" {...field} />
+                    <Input placeholder="Add notes about this transaction" {...field} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
