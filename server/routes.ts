@@ -9,6 +9,7 @@ import { z } from "zod";
 import { ValidationError } from "zod-validation-error";
 
 const upload = multer({
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
