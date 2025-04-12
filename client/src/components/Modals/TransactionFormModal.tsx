@@ -64,7 +64,7 @@ interface TransactionFormModalProps {
 export default function TransactionFormModal({ isOpen, onClose }: TransactionFormModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   
   // Fetch categories with fallback defaults
   const { data: fetchedCategories, isLoading: categoriesLoading } = useQuery({
@@ -175,68 +175,113 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
     // Add the current user ID to the transaction
     console.log("Form submitted with data:", data);
     console.log("Current user:", user);
+    console.log("Authentication loading:", authLoading);
     
-    if (user) {
-      // The server automatically adds the userId from the session
-      // so we don't need to pass it here
-      console.log("Sending data to API:", data);
+    // If still loading auth, wait a moment and retry
+    if (authLoading) {
+      console.log("Auth loading, waiting...");
+      toast({
+        title: "Loading user data",
+        description: "Please wait a moment while we load your account information",
+      });
+      // Retry after a short delay
+      setTimeout(() => {
+        onSubmit(data);
+      }, 1000);
+      return;
+    }
+    
+    // First, check if we need to refresh auth state
+    if (!user) {
+      console.log("No user found, requesting current user data");
       
-      // Directly use fetch for debugging purposes
-      fetch("/api/transactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          amount: parseFloat(data.amount as string),
-          categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-          date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
-        }),
+      fetch("/api/user", {
         credentials: "include"
       })
-      .then(async response => {
-        console.log("Raw response:", response);
-        console.log("Response status:", response.status);
-        
-        if (!response.ok) {
-          try {
-            const errorData = await response.json();
-            console.error("Error response:", errorData);
-            throw new Error(errorData.message || `Error ${response.status}`);
-          } catch (jsonError) {
-            throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
-          }
+      .then(response => {
+        console.log("User API response:", response);
+        if (response.ok) {
+          return response.json();
+        } else {
+          throw new Error("Failed to get user information");
         }
-        
-        return response.json();
       })
-      .then(data => {
-        console.log("Transaction created successfully:", data);
-        toast({
-          title: "Transaction added",
-          description: "Your transaction has been added successfully.",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-        form.reset(defaultValues);
-        onClose();
+      .then(userData => {
+        console.log("Got user data:", userData);
+        if (userData && userData.id) {
+          // We have user data, continue with transaction
+          submitTransaction(data);
+        } else {
+          // Still no user, show auth error
+          throw new Error("Not authenticated");
+        }
       })
       .catch(error => {
-        console.error("Fetch error:", error);
+        console.error("Auth check error:", error);
         toast({
-          title: "Error adding transaction",
-          description: error.message,
+          title: "Authentication error",
+          description: "You must be logged in to add transactions. Please refresh the page and try again.",
           variant: "destructive",
         });
       });
     } else {
-      console.error("No user found when submitting transaction");
+      // User is available, proceed with transaction
+      submitTransaction(data);
+    }
+  }
+  
+  // Helper function to submit transaction data
+  function submitTransaction(data: TransactionFormValues) {
+    console.log("Sending data to API:", data);
+    
+    // Directly use fetch for debugging purposes
+    fetch("/api/transactions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...data,
+        amount: parseFloat(data.amount as string),
+        categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
+        date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
+      }),
+      credentials: "include"
+    })
+    .then(async response => {
+      console.log("Raw response:", response);
+      console.log("Response status:", response.status);
+      
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          console.error("Error response:", errorData);
+          throw new Error(errorData.message || `Error ${response.status}`);
+        } catch (jsonError) {
+          throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+        }
+      }
+      
+      return response.json();
+    })
+    .then(data => {
+      console.log("Transaction created successfully:", data);
       toast({
-        title: "Authentication error",
-        description: "You must be logged in to add transactions",
+        title: "Transaction added",
+        description: "Your transaction has been added successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      form.reset(defaultValues);
+      onClose();
+    })
+    .catch(error => {
+      console.error("Fetch error:", error);
+      toast({
+        title: "Error adding transaction",
+        description: error.message,
         variant: "destructive",
       });
-    }
+    });
   }
 
   return (
