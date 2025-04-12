@@ -278,6 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: validatedBody.amount,
         date: validatedBody.date,
         categoryId: categoryId,
+        accountId: validatedBody.accountId,
         isIncome: validatedBody.isIncome || false,
         notes: validatedBody.notes || null,
         userId: req.user.id
