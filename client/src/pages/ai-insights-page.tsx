@@ -2,7 +2,7 @@ import { useState } from "react";
 import Header from "@/components/Layout/Header";
 import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-simple-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";

@@ -208,7 +208,7 @@ export default function TransactionsPage() {
                 <Button variant="outline" className="gap-2 w-full md:w-auto">
                   <Filter className="h-4 w-4" /> More Filters
                 </Button>
-                <Button className="gap-2 w-full md:w-auto">
+                <Button onClick={toggleAddTransactionMenu} className="gap-2 w-full md:w-auto">
                   <Plus className="h-4 w-4" /> Add Transaction
                 </Button>
               </div>
