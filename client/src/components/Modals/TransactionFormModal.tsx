@@ -51,6 +51,7 @@ const transactionFormSchema = insertTransactionSchema.extend({
     required_error: "Please select a date",
   }),
   categoryId: z.string(), // Allow "none" as a valid option
+  accountId: z.string(), // Account ID as string in the form
   notes: z.string().optional().nullable(),
 });
 
@@ -146,7 +147,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
           ...data,
           amount: parseFloat(data.amount as string),
           categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-          accountId: parseInt(data.accountId),
+          accountId: data.accountId ? parseInt(data.accountId) : null,
           date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
         };
         
@@ -277,7 +278,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         ...data,
         amount: parseFloat(data.amount as string),
         categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-        accountId: parseInt(data.accountId),
+        accountId: data.accountId ? parseInt(data.accountId) : null,
         date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
       }),
       credentials: "include"
