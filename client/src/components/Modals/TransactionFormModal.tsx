@@ -409,8 +409,29 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type="button" // Changed to button type
                 disabled={createTransactionMutation.isPending}
+                onClick={() => {
+                  console.log("Add Transaction button clicked directly");
+                  // Manually trigger form validation and submission
+                  const formData = form.getValues();
+                  console.log("Form data collected:", formData);
+                  
+                  // Validate the data
+                  form.trigger().then(isValid => {
+                    console.log("Form validation result:", isValid);
+                    if (isValid) {
+                      onSubmit(formData);
+                    } else {
+                      console.error("Form validation failed:", form.formState.errors);
+                      toast({
+                        title: "Form validation failed",
+                        description: "Please check the form for errors",
+                        variant: "destructive",
+                      });
+                    }
+                  });
+                }}
               >
                 {createTransactionMutation.isPending ? (
                   <>
