@@ -135,7 +135,7 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
   date: true,
   categoryId: true,
   accountId: true,
-  userId: true,
+  // userId is handled by the server via authentication
   isIncome: true,
   notes: true,
   receiptImageUrl: true,
