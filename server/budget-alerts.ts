@@ -79,30 +79,50 @@ export async function checkBudgetAlerts(
     
     // Send threshold alert if needed
     if (shouldSendThresholdAlert) {
-      console.log(`Sending threshold alert for ${category.name} budget`);
-      await sendBudgetAlertEmail(
-        user.email,
-        user.fullName || user.username,
-        category.name,
-        budget.amount,
-        totalSpent,
-        alertThreshold, // Use the safe alertThreshold value
-        false // not exceeded, just threshold
-      );
+      try {
+        console.log(`Sending threshold alert for ${category.name} budget to ${user.email}`);
+        const success = await sendBudgetAlertEmail(
+          user.email,
+          user.fullName || user.username,
+          category.name,
+          budget.amount,
+          totalSpent,
+          alertThreshold, // Use the safe alertThreshold value
+          false // not exceeded, just threshold
+        );
+        
+        if (success) {
+          console.log(`Successfully sent threshold alert for ${category.name} budget to ${user.email}`);
+        } else {
+          console.warn(`Failed to send threshold alert for ${category.name} budget to ${user.email}`);
+        }
+      } catch (emailError) {
+        console.error('Error sending threshold alert email:', emailError);
+      }
     }
     
     // Send exceeded alert if needed
     if (shouldSendExceededAlert) {
-      console.log(`Sending exceeded alert for ${category.name} budget`);
-      await sendBudgetAlertEmail(
-        user.email,
-        user.fullName || user.username,
-        category.name,
-        budget.amount,
-        totalSpent,
-        alertThreshold, // Use the safe alertThreshold value
-        true // exceeded
-      );
+      try {
+        console.log(`Sending exceeded alert for ${category.name} budget to ${user.email}`);
+        const success = await sendBudgetAlertEmail(
+          user.email,
+          user.fullName || user.username,
+          category.name,
+          budget.amount,
+          totalSpent,
+          alertThreshold, // Use the safe alertThreshold value
+          true // exceeded
+        );
+        
+        if (success) {
+          console.log(`Successfully sent exceeded alert for ${category.name} budget to ${user.email}`);
+        } else {
+          console.warn(`Failed to send exceeded alert for ${category.name} budget to ${user.email}`);
+        }
+      } catch (emailError) {
+        console.error('Error sending exceeded alert email:', emailError);
+      }
     }
   } catch (error) {
     console.error('Error in checkBudgetAlerts:', error);

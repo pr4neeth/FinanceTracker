@@ -19,18 +19,44 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
+  // Make sure we have API key before attempting to send
+  if (!SENDGRID_API_KEY) {
+    console.error('Cannot send email: SENDGRID_API_KEY environment variable is not set');
+    return false;
+  }
+  
   try {
+    // Log the email being sent (for debugging)
+    console.log(`Attempting to send email from ${params.from} to ${params.to} with subject: "${params.subject}"`);
+    
     await mailService.send({
       to: params.to,
-      from: params.from, // This needs to be a verified sender in your SendGrid account
+      from: params.from, // The sender must be the same as the recipient during testing
       subject: params.subject,
       text: params.text,
       html: params.html,
     });
+    
     console.log(`Email sent successfully to ${params.to}`);
     return true;
-  } catch (error) {
-    console.error('SendGrid email error:', error);
+  } catch (error: any) {
+    // More detailed error logging
+    if (error.response) {
+      console.error('SendGrid API error response:', {
+        statusCode: error.code,
+        body: error.response.body,
+      });
+      
+      // Check for common SendGrid errors
+      if (error.code === 403) {
+        console.error('SendGrid authentication error: Check that your API key has email sending permissions and the sender email is verified');
+      } else if (error.code === 401) {
+        console.error('SendGrid API key invalid or revoked');
+      }
+    } else {
+      console.error('SendGrid email error:', error);
+    }
+    
     return false;
   }
 }
@@ -44,7 +70,10 @@ export async function sendBudgetAlertEmail(
   threshold: number,
   isExceeded: boolean
 ): Promise<boolean> {
-  const senderEmail = 'notifications@smartbudget.com'; // Replace with your verified sender email
+  // Use the same email address for both sender and recipient
+  // This works for testing and development, but in production
+  // you would need to verify your sending domain with SendGrid
+  const senderEmail = userEmail; // Use the user's own email for testing
 
   const alertType = isExceeded ? 'exceeded' : 'threshold reached';
   const subject = `Budget Alert: ${categoryName} budget ${alertType}`;
