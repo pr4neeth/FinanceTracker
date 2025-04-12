@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-simple-auth";
 
 interface SidebarProps {
   activePage?: string;
@@ -24,7 +25,8 @@ interface SidebarProps {
 
 export default function Sidebar({ activePage, isMobile = false, onClose }: SidebarProps) {
   const [_, navigate] = useLocation();
-  const { logoutMutation } = useAuth();
+  const { logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Navigation items structure
   const navigationItems = [
@@ -62,8 +64,16 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
     }
   };
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -113,14 +123,14 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
           <button
             onClick={handleLogout}
             className="flex items-center px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg w-full"
-            disabled={logoutMutation.isPending}
+            disabled={isLoggingOut}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
               <polyline points="16 17 21 12 16 7"></polyline>
               <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
-            {logoutMutation.isPending ? "Logging out..." : "Log out"}
+            {isLoggingOut ? "Logging out..." : "Log out"}
           </button>
         </div>
       )}

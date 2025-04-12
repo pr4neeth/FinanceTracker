@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-simple-auth";
 import { 
   ChartLine, 
   Bell, 
@@ -30,8 +30,9 @@ interface HeaderProps {
 }
 
 export default function Header({ toggleMobileMenu, username }: HeaderProps) {
-  const { logoutMutation } = useAuth();
+  const { logout } = useAuth();
   const [_, navigate] = useLocation();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Get initial display name (first letter of each word up to 2 letters)
   const getInitials = (name: string) => {
@@ -46,8 +47,16 @@ export default function Header({ toggleMobileMenu, username }: HeaderProps) {
   // For demo purposes, always show 3 notifications
   const notificationCount = 3;
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -118,9 +127,9 @@ export default function Header({ toggleMobileMenu, username }: HeaderProps) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
+            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>{logoutMutation.isPending ? "Logging out..." : "Log out"}</span>
+              <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
