@@ -378,6 +378,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get budgets
       const budgets = await storage.getBudgetsByUserId(req.user.id);
       
+      // Print debug info to help us diagnose
+      console.log("DEBUG - Number of transactions:", transactions.length);
+      console.log("DEBUG - Categories:", categories.map(c => ({ id: c.id, name: c.name })));
+      console.log("DEBUG - Budgets:", budgets.map(b => ({ id: b.id, categoryId: b.categoryId })));
+      console.log("DEBUG - Transactions:", transactions.slice(0, 3).map(t => ({ 
+        amount: t.amount, 
+        categoryId: t.categoryId, 
+        category_id: t.category_id
+      })));
+      
       // Calculate spending by category
       const categorySpending = {};
       
@@ -391,9 +401,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Skip income transactions
         if (transaction.isIncome) continue;
         
+        // Map the database field (category_id) to the code field (categoryId)
+        const categoryId = transaction.categoryId || transaction.category_id;
+        
         // Only consider transactions with a category that has a budget
-        if (transaction.categoryId && categorySpending[transaction.categoryId] !== undefined) {
-          categorySpending[transaction.categoryId] += transaction.amount;
+        if (categoryId && categorySpending[categoryId] !== undefined) {
+          categorySpending[categoryId] += transaction.amount;
         }
       }
       
@@ -402,6 +415,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         categoryId: parseInt(categoryId),
         spent: spent
       }));
+      
+      console.log("DEBUG - Calculated spending:", result);
       
       res.json(result);
     } catch (error) {
