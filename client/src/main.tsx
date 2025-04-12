@@ -2,17 +2,13 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
+import { Loader2 } from "lucide-react";
+import SimpleHomePage from "@/pages/simple-home";
+import SimpleAuthPage from "@/pages/simple-auth";
 import NotFound from "@/pages/not-found";
-import HomePage from "@/pages/home-page";
-import AuthPage from "@/pages/auth-page";
-import TransactionsPage from "@/pages/transactions-page";
-import BudgetsPage from "@/pages/budgets-page";
-import BillsPage from "@/pages/bills-page";
-import AiInsightsPage from "@/pages/ai-insights-page";
-import { AuthProvider, useAuth } from "./hooks/use-auth";
+import { AuthProvider, useAuth } from "./hooks/use-simple-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { Loader2 } from "lucide-react";
 import "./index.css";
 
 // Create a centralized provider component that will wrap the entire app
@@ -80,44 +76,20 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Main app with all routes
+// Main app with simplified routes
 function App() {
   return (
     <Providers>
       <Switch>
         <Route path="/auth">
           <AuthRoute>
-            <AuthPage />
+            <SimpleAuthPage />
           </AuthRoute>
         </Route>
         
         <Route path="/">
           <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        </Route>
-        
-        <Route path="/transactions">
-          <ProtectedRoute>
-            <TransactionsPage />
-          </ProtectedRoute>
-        </Route>
-        
-        <Route path="/budgets">
-          <ProtectedRoute>
-            <BudgetsPage />
-          </ProtectedRoute>
-        </Route>
-        
-        <Route path="/bills">
-          <ProtectedRoute>
-            <BillsPage />
-          </ProtectedRoute>
-        </Route>
-        
-        <Route path="/insights">
-          <ProtectedRoute>
-            <AiInsightsPage />
+            <SimpleHomePage />
           </ProtectedRoute>
         </Route>
         
