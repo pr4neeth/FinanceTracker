@@ -29,9 +29,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper for validating request body against a schema
   const validateBody = (schema: z.ZodType<any, any>) => (req, res, next) => {
     try {
-      req.validatedBody = schema.parse(req.body);
+      console.log("Request body:", req.body);
+      // Add validatedBody to the request object
+      const parsed = schema.parse(req.body);
+      console.log("Parsed body:", parsed);
+      // @ts-ignore: Extending Express.Request
+      req.validatedBody = parsed;
       next();
     } catch (error) {
+      console.error("Validation error:", error);
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError(error);
         return res.status(400).json({ message: validationError.message });
@@ -195,14 +201,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transactions", requireAuth, validateBody(insertTransactionSchema), async (req, res, next) => {
+  app.post("/api/transactions", requireAuth, async (req, res, next) => {
+    console.log("Received transaction create request:", req.body);
     try {
-      // If no category is provided, attempt to categorize with AI
-      if (!req.validatedBody.categoryId && req.validatedBody.description) {
+      // First, manually validate the body
+      const validation = insertTransactionSchema.safeParse(req.body);
+      if (!validation.success) {
+        console.error("Transaction validation failed:", validation.error);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      // Use the validated data for the next steps
+      const validatedBody = validation.data;
+      
+      // Try to categorize with AI if no category is provided
+      let categoryId = validatedBody.categoryId;
+      if (!categoryId && validatedBody.description) {
         try {
           const { category, confidence } = await categorizeTransaction(
-            req.validatedBody.description,
-            req.validatedBody.amount
+            validatedBody.description,
+            validatedBody.amount
           );
           
           // Find or create the category
@@ -212,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           if (matchedCategory) {
-            req.validatedBody.categoryId = matchedCategory.id;
+            categoryId = matchedCategory.id;
           } else {
             // Create a new category
             const colorOptions = [
@@ -240,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId: req.user.id
             });
             
-            req.validatedBody.categoryId = newCategory.id;
+            categoryId = newCategory.id;
           }
         } catch (err) {
           // If AI categorization fails, continue without a category
@@ -248,13 +269,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Create the transaction
       const transaction = await storage.createTransaction({
-        ...req.validatedBody,
+        ...validatedBody,
+        categoryId,
         userId: req.user.id
       });
       
+      console.log("Transaction created:", transaction);
       res.status(201).json(transaction);
     } catch (error) {
+      console.error("Error creating transaction:", error);
       next(error);
     }
   });

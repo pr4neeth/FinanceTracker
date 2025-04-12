@@ -193,7 +193,15 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              console.log("Form submit event triggered");
+              form.handleSubmit((data) => {
+                console.log("Form validated successfully:", data);
+                onSubmit(data);
+              })(e);
+            }} 
+            className="space-y-4">
             <FormField
               control={form.control}
               name="description"
