@@ -67,7 +67,7 @@ export default function TransactionsPage() {
   const [receiptScannerOpen, setReceiptScannerOpen] = useState(false);
   const [addTransactionMenuOpen, setAddTransactionMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
@@ -113,7 +113,7 @@ export default function TransactionsPage() {
         transaction.description.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Filter by category
-      const matchesCategory = categoryFilter === "" || 
+      const matchesCategory = categoryFilter === "all" || 
         transaction.categoryId === parseInt(categoryFilter);
       
       // Filter by date
@@ -183,7 +183,7 @@ export default function TransactionsPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories?.map(category => (
                         <SelectItem key={category.id} value={category.id.toString()}>
                           {category.name}
