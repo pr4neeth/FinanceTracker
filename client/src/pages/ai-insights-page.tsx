@@ -116,11 +116,20 @@ export default function AiInsightsPage() {
     }
   });
 
+  // State for AI disabled status
+  const [aiAdviceDisabled, setAiAdviceDisabled] = useState(false);
+  
   // Get financial advice mutation
   const getAdviceMutation = useMutation({
     mutationFn: async (data) => {
       const response = await apiRequest("POST", "/api/financial-advice", data);
       return await response.json();
+    },
+    onError: (error) => {
+      // Check if error is related to OpenAI API quota
+      if (error.message && error.message.includes("OpenAI API quota exceeded")) {
+        setAiAdviceDisabled(true);
+      }
     }
   });
 

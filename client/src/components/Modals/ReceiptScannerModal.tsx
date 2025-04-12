@@ -134,11 +134,16 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to scan receipt",
-        description: error.message,
-        variant: "destructive"
-      });
+      // Check if the error is related to OpenAI API quota
+      if (error.message.includes("OpenAI API quota exceeded")) {
+        setAiDisabled(true);
+      } else {
+        toast({
+          title: "Failed to scan receipt",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
       setIsUploading(false);
     }
   });
@@ -183,6 +188,9 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
         </DialogHeader>
         
         <div className="space-y-4">
+          {aiDisabled && (
+            <AIDisabledAlert feature="Receipt scanning" />
+          )}
           {!preview ? (
             <>
               <div
