@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { createRoot } from "react-dom/client";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Router } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
@@ -9,90 +9,48 @@ import TransactionsPage from "@/pages/transactions-page";
 import BudgetsPage from "@/pages/budgets-page";
 import BillsPage from "@/pages/bills-page";
 import AiInsightsPage from "@/pages/ai-insights-page";
-import { AuthProvider, useAuth } from "./hooks/use-auth";
+import { AuthProvider } from "./hooks/use-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { Loader2 } from "lucide-react";
 import "./index.css";
 
-// Redirect component using useLocation
-function Redirect({ to }: { to: string }) {
-  const [, navigate] = useLocation();
-  
-  // Effect to navigate on render
-  useEffect(() => {
-    navigate(to);
-  }, [navigate, to]);
-  
-  return null;
+// Create a wrapper component for each page that will be wrapped in the AuthProvider
+function withAuth(Component: React.ComponentType) {
+  return function WithAuth(props: any) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Component {...props} />
+        </AuthProvider>
+      </QueryClientProvider>
+    );
+  };
 }
 
-// Routes component that uses the auth context
-function Routes() {
-  const { user, isLoading } = useAuth();
-  const [location] = useLocation();
-  
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  // Handle redirection based on auth status and current location
-  if (!user && !location.startsWith('/auth')) {
-    return <Redirect to="/auth" />;
-  }
-  
-  if (user && location === '/auth') {
-    return <Redirect to="/" />;
-  }
-  
+// Wrap each component that needs auth
+const AuthenticatedHomePage = withAuth(HomePage);
+const AuthenticatedAuthPage = withAuth(AuthPage);
+const AuthenticatedTransactionsPage = withAuth(TransactionsPage);
+const AuthenticatedBudgetsPage = withAuth(BudgetsPage);
+const AuthenticatedBillsPage = withAuth(BillsPage);
+const AuthenticatedAiInsightsPage = withAuth(AiInsightsPage);
+const AuthenticatedNotFound = withAuth(NotFound);
+
+// Main app
+function App() {
   return (
     <>
       <Switch>
-        <Route path="/auth">
-          <AuthPage />
-        </Route>
-        
-        <Route path="/">
-          <HomePage />
-        </Route>
-        
-        <Route path="/transactions">
-          <TransactionsPage />
-        </Route>
-        
-        <Route path="/budgets">
-          <BudgetsPage />
-        </Route>
-        
-        <Route path="/bills">
-          <BillsPage />
-        </Route>
-        
-        <Route path="/insights">
-          <AiInsightsPage />
-        </Route>
-        
-        <Route>
-          <NotFound />
-        </Route>
+        <Route path="/auth" component={AuthenticatedAuthPage} />
+        <Route path="/" component={AuthenticatedHomePage} />
+        <Route path="/transactions" component={AuthenticatedTransactionsPage} />
+        <Route path="/budgets" component={AuthenticatedBudgetsPage} />
+        <Route path="/bills" component={AuthenticatedBillsPage} />
+        <Route path="/insights" component={AuthenticatedAiInsightsPage} />
+        <Route component={AuthenticatedNotFound} />
       </Switch>
       <Toaster />
     </>
-  );
-}
-
-// Main app with providers
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Routes />
-      </AuthProvider>
-    </QueryClientProvider>
   );
 }
 
