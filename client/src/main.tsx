@@ -86,10 +86,19 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 // Main app with full routes
 function App() {
+  return (
+    <Providers>
+      <AppContent />
+    </Providers>
+  );
+}
+
+// App content wrapped by providers
+function AppContent() {
   const { alerts, dismissAlert } = useBudgetAlerts();
   
   return (
-    <Providers>
+    <>
       <Switch>
         <Route path="/auth">
           <AuthRoute>
@@ -136,7 +145,7 @@ function App() {
       <BudgetAlertContainer alerts={alerts} onDismiss={dismissAlert} />
       
       <Toaster />
-    </Providers>
+    </>
   );
 }
 

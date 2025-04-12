@@ -150,11 +150,19 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
                 variant="outline" 
                 className="w-full"
                 onClick={() => {
+                  console.log("Test Alert button clicked");
                   if (sortedBudgets && sortedBudgets.length > 0 && categories) {
                     const budget = sortedBudgets[0];
                     const category = categories.find((c: any) => c.id === budget.categoryId);
                     const categoryName = category ? category.name : `Category ${budget.categoryId}`;
                     const spentAmount = getSpendingAmount(budget);
+                    
+                    console.log("Adding budget alert:", {
+                      categoryName,
+                      budgetAmount: budget.amount,
+                      spentAmount,
+                      isExceeded: spentAmount > budget.amount
+                    });
                     
                     addBudgetAlert(
                       categoryName,
@@ -162,6 +170,8 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
                       spentAmount,
                       spentAmount > budget.amount
                     );
+                  } else {
+                    console.error("Cannot create test alert: Missing budget or category data");
                   }
                 }}
               >
