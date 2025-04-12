@@ -290,6 +290,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const transaction = await storage.createTransaction(transactionData);
         console.log("Transaction created successfully:", transaction);
+        
+        // Check budget alerts after creating a transaction (runs asynchronously)
+        import('./budget-alerts').then(({ checkBudgetAlerts }) => {
+          checkBudgetAlerts(storage, transaction, req.user.id)
+            .catch(err => console.error('Error checking budget alerts:', err));
+        }).catch(err => console.error('Error importing budget-alerts:', err));
+        
         res.status(201).json(transaction);
       } catch (dbError) {
         console.error("Database error creating transaction:", dbError);
