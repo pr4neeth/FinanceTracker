@@ -753,6 +753,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG: Add endpoint to check authentication
+  app.get("/api/check-auth", (req, res) => {
+    if (req.isAuthenticated()) {
+      const { password, ...userWithoutPassword } = req.user as any;
+      res.json({
+        authenticated: true,
+        user: userWithoutPassword,
+        session: req.session,
+      });
+    } else {
+      res.json({
+        authenticated: false,
+        session: req.session,
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
