@@ -65,6 +65,7 @@ export function BudgetAlertsProvider({ children }: BudgetAlertsProviderProps) {
     spentAmount: number,
     isExceeded: boolean
   ) => {
+    console.log("Adding budget alert:", { categoryName, budgetAmount, spentAmount, isExceeded });
     const percentSpent = Math.round((spentAmount / budgetAmount) * 100);
     
     const newAlert: BudgetAlert = {
@@ -77,7 +78,13 @@ export function BudgetAlertsProvider({ children }: BudgetAlertsProviderProps) {
       timestamp: new Date()
     };
     
-    setAlerts(prevAlerts => [...prevAlerts, newAlert]);
+    console.log("Created new alert object:", newAlert);
+    
+    setAlerts(prevAlerts => {
+      const updatedAlerts = [...prevAlerts, newAlert];
+      console.log("Updated alerts array:", updatedAlerts);
+      return updatedAlerts;
+    });
     
     // Also show toast notification
     toast({
@@ -89,6 +96,8 @@ export function BudgetAlertsProvider({ children }: BudgetAlertsProviderProps) {
         : `You've used ${percentSpent}% of your budget.`,
       variant: isExceeded ? "destructive" : "default",
     });
+    
+    console.log("Toast notification sent");
   };
 
   const dismissAlert = (id: string) => {

@@ -67,6 +67,8 @@ interface BudgetAlertContainerProps {
 }
 
 export function BudgetAlertContainer({ alerts, onDismiss }: BudgetAlertContainerProps) {
+  console.log("BudgetAlertContainer rendering with", alerts.length, "alerts");
+  
   if (alerts.length === 0) return null;
   
   return (
@@ -78,6 +80,10 @@ export function BudgetAlertContainer({ alerts, onDismiss }: BudgetAlertContainer
           onDismiss={onDismiss} 
         />
       ))}
+      {/* Debugging indicator */}
+      <div className="bg-primary text-primary-foreground p-2 rounded text-xs">
+        {alerts.length} alert(s) active
+      </div>
     </div>
   );
 }
