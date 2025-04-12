@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import multer from "multer";
 import { analyzeReceipt, categorizeTransaction, generateFinancialAdvice, predictExpenses, suggestSavings } from "./openai";
-import { financialAdviceRequestSchema, insertBillSchema, insertBudgetSchema, insertCategorySchema, insertGoalSchema, insertTransactionSchema, receiptSchema } from "@shared/schema";
+import { financialAdviceRequestSchema, insertBillSchema, insertBudgetSchema, clientBudgetSchema, insertCategorySchema, insertGoalSchema, insertTransactionSchema, receiptSchema } from "@shared/schema";
 import { z } from "zod";
 import { ValidationError } from "zod-validation-error";
 
@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/budgets", requireAuth, validateBody(insertBudgetSchema), async (req, res, next) => {
+  app.post("/api/budgets", requireAuth, validateBody(clientBudgetSchema), async (req, res, next) => {
     try {
       const budget = await storage.createBudget({
         ...req.validatedBody,
@@ -369,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/budgets/:id", requireAuth, validateBody(insertBudgetSchema.partial()), async (req, res, next) => {
+  app.put("/api/budgets/:id", requireAuth, validateBody(clientBudgetSchema.partial()), async (req, res, next) => {
     try {
       const budgetId = parseInt(req.params.id);
       const budget = await storage.getBudgetById(budgetId);

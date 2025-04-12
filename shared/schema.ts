@@ -151,6 +151,9 @@ export const insertBudgetSchema = createInsertSchema(budgets).pick({
   alertThreshold: true,
 });
 
+// Client-side insert schema without userId for form validation
+export const clientBudgetSchema = insertBudgetSchema.omit({ userId: true });
+
 export const insertBillSchema = createInsertSchema(bills).pick({
   name: true,
   amount: true,
