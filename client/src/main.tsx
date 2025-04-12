@@ -1,10 +1,14 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { Switch, Route, Router } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
-import SimpleHomePage from "@/pages/simple-home";
+import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
+import TransactionsPage from "@/pages/transactions-page";
+import BudgetsPage from "@/pages/budgets-page";
+import BillsPage from "@/pages/bills-page";
+import AiInsightsPage from "@/pages/ai-insights-page";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -25,6 +29,14 @@ function Providers({ children }: { children: React.ReactNode }) {
 // Create a wrapper for protected routes that checks authentication
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+  
+  // Use React's useEffect to handle navigation to avoid direct DOM manipulation
+  React.useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, isLoading, navigate]);
   
   if (isLoading) {
     return (
@@ -35,7 +47,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   
   if (!user) {
-    window.location.href = "/auth";
     return null;
   }
   
@@ -45,6 +56,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Create a wrapper for the auth page that redirects when logged in
 function AuthRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+  
+  // Use React's useEffect to handle navigation to avoid direct DOM manipulation
+  React.useEffect(() => {
+    if (!isLoading && user) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
   
   if (isLoading) {
     return (
@@ -55,14 +74,13 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   }
   
   if (user) {
-    window.location.href = "/";
     return null;
   }
   
   return <>{children}</>;
 }
 
-// Main app with simplified routing
+// Main app with all routes
 function App() {
   return (
     <Providers>
@@ -75,7 +93,31 @@ function App() {
         
         <Route path="/">
           <ProtectedRoute>
-            <SimpleHomePage />
+            <HomePage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/transactions">
+          <ProtectedRoute>
+            <TransactionsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/budgets">
+          <ProtectedRoute>
+            <BudgetsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/bills">
+          <ProtectedRoute>
+            <BillsPage />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/insights">
+          <ProtectedRoute>
+            <AiInsightsPage />
           </ProtectedRoute>
         </Route>
         
