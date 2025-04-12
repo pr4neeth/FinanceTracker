@@ -628,10 +628,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert file buffer to base64
       const base64Image = req.file.buffer.toString("base64");
       
-      // Analyze receipt with OpenAI
-      const receiptData = await analyzeReceipt(base64Image);
-      
-      res.json(receiptData);
+      try {
+        // Analyze receipt with OpenAI
+        const receiptData = await analyzeReceipt(base64Image);
+        res.json(receiptData);
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError.message);
+        
+        // Check for quota exceeded error
+        if (aiError.message.includes("insufficient_quota") || 
+            aiError.message.includes("exceeded your current quota")) {
+          return res.status(402).json({ 
+            message: "OpenAI API quota exceeded. Please check your API key and billing details.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Handle other OpenAI errors
+        return res.status(500).json({ 
+          message: "Error processing receipt with AI service. Please try again later.",
+          error: aiError.message
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -665,14 +683,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       };
       
-      // Generate advice
-      const advice = await generateFinancialAdvice(
-        req.validatedBody.topic,
-        req.validatedBody.question || "",
-        userData
-      );
-      
-      res.json({ advice });
+      try {
+        // Generate advice
+        const advice = await generateFinancialAdvice(
+          req.validatedBody.topic,
+          req.validatedBody.question || "",
+          userData
+        );
+        
+        res.json({ advice });
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError.message);
+        
+        // Check for quota exceeded error
+        if (aiError.message.includes("insufficient_quota") || 
+            aiError.message.includes("exceeded your current quota")) {
+          return res.status(402).json({ 
+            message: "OpenAI API quota exceeded. Please check your API key and billing details.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Handle other OpenAI errors
+        return res.status(500).json({ 
+          message: "Error generating financial advice with AI service. Please try again later.",
+          error: aiError.message
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -729,10 +766,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         months: data.months
       }));
       
-      // Get predictions
-      const predictions = await predictExpenses(pastExpenses);
-      
-      res.json(predictions);
+      try {
+        // Get predictions
+        const predictions = await predictExpenses(pastExpenses);
+        res.json(predictions);
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError.message);
+        
+        // Check for quota exceeded error
+        if (aiError.message && (aiError.message.includes("insufficient_quota") || 
+            aiError.message.includes("exceeded your current quota"))) {
+          return res.status(402).json({ 
+            message: "OpenAI API quota exceeded. Please check your API key and billing details.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Handle other OpenAI errors
+        return res.status(500).json({ 
+          message: "Error predicting expenses with AI service. Please try again later.",
+          error: aiError.message || "Unknown AI error"
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -775,10 +830,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(t => t.isIncome)
         .reduce((sum, t) => sum + t.amount, 0) / 3; // Average over 3 months
       
-      // Get saving suggestions
-      const suggestions = await suggestSavings(formattedTransactions, monthlyIncome);
-      
-      res.json(suggestions);
+      try {
+        // Get saving suggestions
+        const suggestions = await suggestSavings(formattedTransactions, monthlyIncome);
+        res.json(suggestions);
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError.message);
+        
+        // Check for quota exceeded error
+        if (aiError.message && (aiError.message.includes("insufficient_quota") || 
+            aiError.message.includes("exceeded your current quota"))) {
+          return res.status(402).json({ 
+            message: "OpenAI API quota exceeded. Please check your API key and billing details.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Handle other OpenAI errors
+        return res.status(500).json({ 
+          message: "Error generating savings suggestions with AI service. Please try again later.",
+          error: aiError.message || "Unknown AI error"
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -793,8 +866,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "description and amount are required" });
       }
       
-      const categorization = await categorizeTransaction(description, amount);
-      res.json(categorization);
+      try {
+        const categorization = await categorizeTransaction(description, amount);
+        res.json(categorization);
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError.message);
+        
+        // Check for quota exceeded error
+        if (aiError.message && (aiError.message.includes("insufficient_quota") || 
+            aiError.message.includes("exceeded your current quota"))) {
+          return res.status(402).json({ 
+            message: "OpenAI API quota exceeded. Please check your API key and billing details.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Handle other OpenAI errors
+        return res.status(500).json({ 
+          message: "Error categorizing transaction with AI service. Please try again later.",
+          error: aiError.message || "Unknown AI error"
+        });
+      }
     } catch (error) {
       next(error);
     }

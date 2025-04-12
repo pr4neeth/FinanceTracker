@@ -95,7 +95,18 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
       });
       
       if (!response.ok) {
-        throw new Error('Failed to scan receipt');
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle specific OpenAI quota exceeded error
+        if (response.status === 402 && errorData.error === "QUOTA_EXCEEDED") {
+          throw new Error(
+            "OpenAI API quota exceeded. Please contact the administrator to update the API key."
+          );
+        }
+        
+        throw new Error(
+          errorData.message || 'Failed to scan receipt'
+        );
       }
       
       return await response.json();
