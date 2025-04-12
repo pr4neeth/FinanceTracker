@@ -309,6 +309,11 @@ export default function TransactionsPage() {
         onClose={closeReceiptScanner} 
       />
       
+      <TransactionFormModal
+        isOpen={transactionFormOpen}
+        onClose={closeTransactionForm}
+      />
+      
       {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={closeMobileMenu}>
           <div className="fixed right-0 top-0 bottom-0 w-4/5 max-w-xs bg-white shadow-lg overflow-y-auto z-50" onClick={(e) => e.stopPropagation()}>

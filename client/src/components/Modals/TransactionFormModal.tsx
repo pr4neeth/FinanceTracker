@@ -8,6 +8,7 @@ import { z } from "zod";
 import { insertTransactionSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-simple-auth";
 
 import {
   Dialog,
@@ -48,6 +49,7 @@ const transactionFormSchema = insertTransactionSchema.extend({
   amount: z.string().min(1, "Amount is required"),
   date: z.date(),
   categoryId: z.string().min(1, "Category is required"),
+  notes: z.string().optional(),
 });
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
@@ -60,6 +62,7 @@ interface TransactionFormModalProps {
 export default function TransactionFormModal({ isOpen, onClose }: TransactionFormModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   // Fetch categories
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -76,9 +79,9 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
     description: "",
     amount: "",
     date: new Date(),
-    categoryId: "",
+    categoryId: "none",
     isIncome: false,
-    note: "",
+    notes: "",
   };
 
   // Initialize form
@@ -94,7 +97,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
       const apiData = {
         ...data,
         amount: parseFloat(data.amount),
-        categoryId: parseInt(data.categoryId),
+        categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
       };
       
       const res = await apiRequest("POST", "/api/transactions", apiData);
@@ -120,7 +123,20 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
 
   // Handle form submission
   function onSubmit(data: TransactionFormValues) {
-    createTransactionMutation.mutate(data);
+    // Add the current user ID to the transaction
+    if (user) {
+      const dataWithUserId = {
+        ...data,
+        userId: user.id,
+      };
+      createTransactionMutation.mutate(dataWithUserId);
+    } else {
+      toast({
+        title: "Authentication error",
+        description: "You must be logged in to add transactions",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -263,12 +279,12 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
 
             <FormField
               control={form.control}
-              name="note"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Note (Optional)</FormLabel>
+                  <FormLabel>Notes (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Add a note about this transaction" {...field} />
+                    <Input placeholder="Add notes about this transaction" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
