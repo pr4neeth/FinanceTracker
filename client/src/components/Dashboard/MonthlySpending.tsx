@@ -71,7 +71,7 @@ export default function MonthlySpending({ className, year, month }: MonthlySpend
       if (timeRange === "30days") {
         // Get the current month and previous month (up to 2 months total)
         const months = [];
-        for (let i = 0; i < 2; i++) {
+        for (let i = 1; i >= 0; i--) {
           const monthDate = new Date(currentDate.getFullYear(), currentMonth - i, 1);
           const monthName = monthDate.toLocaleString('default', { month: 'short' }).toLowerCase();
           if (monthDataMap.has(monthName)) {
@@ -82,7 +82,7 @@ export default function MonthlySpending({ className, year, month }: MonthlySpend
       } else if (timeRange === "90days") {
         // Get the current month and previous 2 months (up to 3 months total)
         const months = [];
-        for (let i = 0; i < 3; i++) {
+        for (let i = 2; i >= 0; i--) {
           const monthDate = new Date(currentDate.getFullYear(), currentMonth - i, 1);
           const monthName = monthDate.toLocaleString('default', { month: 'short' }).toLowerCase();
           if (monthDataMap.has(monthName)) {
