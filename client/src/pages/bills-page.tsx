@@ -458,7 +458,7 @@ export default function BillsPage() {
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction 
-                                      onClick={() => deleteBillMutation.mutate(bill.id)}
+                                      onClick={() => deleteBillMutation.mutate(bill._id)}
                                       className="bg-red-500 hover:bg-red-600"
                                     >
                                       Delete
