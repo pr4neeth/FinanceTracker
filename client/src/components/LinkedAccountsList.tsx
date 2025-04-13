@@ -59,10 +59,17 @@ export const LinkedAccountsList: React.FC<LinkedAccountsListProps> = ({
     onSuccess: (data) => {
       toast({
         title: 'Sync successful',
-        description: `${data.newTransactionsCount} new transactions synced.`,
+        description: `${data.transactionsAdded || 0} transactions synced.`,
       });
-      // Invalidate transactions queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/plaid/accounts'] });
+      
+      // Also invalidate any specific account transaction queries
+      if (data.accountId) {
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/plaid/accounts/${data.accountId}/transactions`] 
+        });
+      }
     },
     onError: (error: Error) => {
       toast({

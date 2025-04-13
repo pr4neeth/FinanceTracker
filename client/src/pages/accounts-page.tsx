@@ -59,6 +59,72 @@ const accountFormSchema = z.object({
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
 
+// Component to display transactions for Plaid accounts
+const PlaidAccountsWithTransactions: React.FC = () => {
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+
+  // Fetch Plaid accounts
+  const { data: plaidAccounts = [], isLoading: plaidAccountsLoading } = useQuery({
+    queryKey: ['/api/plaid/accounts'],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest('GET', '/api/plaid/accounts');
+        return response.json();
+      } catch (error) {
+        console.error('Error fetching Plaid accounts:', error);
+        return [];
+      }
+    },
+  });
+
+  // Skip rendering if there are no Plaid accounts or still loading
+  if (plaidAccountsLoading) {
+    return (
+      <div className="flex justify-center items-center p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2">Loading linked accounts...</span>
+      </div>
+    );
+  }
+
+  if (!plaidAccounts.length) {
+    return null; // Don't show anything if no Plaid accounts
+  }
+
+  return (
+    <div className="mt-4 space-y-8">
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-medium mb-4">Bank Account Transactions</h3>
+        <p className="text-muted-foreground mb-4">
+          View transactions from your connected bank accounts. Transactions will only appear here and not in the main transactions page.
+        </p>
+        
+        <div className="space-y-6">
+          {plaidAccounts.map((account: any) => (
+            <div key={account._id} className="border rounded-lg overflow-hidden">
+              <div 
+                className="p-4 bg-muted cursor-pointer flex justify-between items-center"
+                onClick={() => setExpandedAccountId(expandedAccountId === account._id ? null : account._id)}
+              >
+                <h4 className="font-medium">{account.name} Transactions</h4>
+                <Button variant="outline" size="sm">
+                  {expandedAccountId === account._id ? "Hide" : "Show"} Transactions
+                </Button>
+              </div>
+              
+              {expandedAccountId === account._id && (
+                <div className="p-4">
+                  <PlaidTransactions accountId={account._id} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function AccountsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -322,6 +388,10 @@ export default function AccountsPage() {
               </CardHeader>
               <CardContent>
                 <LinkedAccountsList />
+              </CardContent>
+              <CardContent className="pt-0">
+                {/* Fetch Plaid accounts and render transactions */}
+                <PlaidAccountsWithTransactions />
               </CardContent>
             </Card>
 

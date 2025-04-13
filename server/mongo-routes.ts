@@ -1341,7 +1341,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         transactionsAdded: newTransactions.length,
-        transactions: newTransactions
+        transactions: newTransactions,
+        accountId: req.body.accountId
       });
     } catch (error) {
       console.error("Error syncing transactions:", error);
