@@ -191,6 +191,63 @@ export class MongoStorage implements IStorage {
     }
   }
   
+  // Plaid methods
+  async createPlaidItem(plaidItem: InsertPlaidItem): Promise<PlaidItemDocument> {
+    try {
+      const newPlaidItem = new PlaidItem(plaidItem);
+      return await newPlaidItem.save();
+    } catch (error) {
+      console.error('Error creating Plaid item:', error);
+      throw error;
+    }
+  }
+  
+  async getPlaidItemsByUserId(userId: string): Promise<PlaidItemDocument[]> {
+    try {
+      return await PlaidItem.find({ userId: new Types.ObjectId(userId) });
+    } catch (error) {
+      console.error('Error getting Plaid items by user ID:', error);
+      return [];
+    }
+  }
+  
+  async getPlaidItemById(id: string): Promise<PlaidItemDocument | null> {
+    try {
+      return await PlaidItem.findById(id);
+    } catch (error) {
+      console.error('Error getting Plaid item by ID:', error);
+      return null;
+    }
+  }
+  
+  async getPlaidItemByItemId(itemId: string): Promise<PlaidItemDocument | null> {
+    try {
+      return await PlaidItem.findOne({ itemId });
+    } catch (error) {
+      console.error('Error getting Plaid item by item ID:', error);
+      return null;
+    }
+  }
+  
+  async deletePlaidItem(id: string): Promise<boolean> {
+    try {
+      const result = await PlaidItem.deleteOne({ _id: id });
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error('Error deleting Plaid item:', error);
+      return false;
+    }
+  }
+  
+  async updatePlaidItem(id: string, data: Partial<InsertPlaidItem>): Promise<PlaidItemDocument | null> {
+    try {
+      return await PlaidItem.findByIdAndUpdate(id, data, { new: true });
+    } catch (error) {
+      console.error('Error updating Plaid item:', error);
+      return null;
+    }
+  }
+  
   // Account methods
   async createAccount(account: InsertAccount): Promise<AccountDocument> {
     try {
@@ -211,11 +268,29 @@ export class MongoStorage implements IStorage {
     }
   }
   
+  async getAccountsByPlaidItemId(plaidItemId: string): Promise<AccountDocument[]> {
+    try {
+      return await Account.find({ plaidItemId: new Types.ObjectId(plaidItemId) });
+    } catch (error) {
+      console.error('Error getting accounts by Plaid item ID:', error);
+      return [];
+    }
+  }
+  
   async getAccountById(id: string): Promise<AccountDocument | null> {
     try {
       return await Account.findById(id);
     } catch (error) {
       console.error('Error getting account by ID:', error);
+      return null;
+    }
+  }
+  
+  async getAccountByPlaidAccountId(plaidAccountId: string): Promise<AccountDocument | null> {
+    try {
+      return await Account.findOne({ plaidAccountId });
+    } catch (error) {
+      console.error('Error getting account by Plaid account ID:', error);
       return null;
     }
   }
@@ -494,6 +569,15 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error('Error getting AI insights by user ID:', error);
       return [];
+    }
+  }
+  
+  async getAiInsightById(id: string): Promise<AiInsightDocument | null> {
+    try {
+      return await AiInsight.findById(id);
+    } catch (error) {
+      console.error('Error getting AI insight by ID:', error);
+      return null;
     }
   }
   

@@ -15,6 +15,13 @@ import {
   suggestSavings,
   categorizeTransaction,
 } from "./openai";
+import {
+  createLinkToken,
+  exchangePublicToken,
+  getAccounts,
+  getTransactions,
+  getBalances,
+} from "./plaid";
 import { z } from "zod";
 import { Types } from 'mongoose';
 
@@ -817,6 +824,254 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       next(error);
+    }
+  });
+
+  // Plaid API routes
+  app.post("/api/plaid/create-link-token", requireAuth, async (req, res, next) => {
+    try {
+      const linkToken = await createLinkToken(req.user._id.toString());
+      res.json({ linkToken });
+    } catch (error) {
+      console.error("Error creating link token:", error);
+      res.status(500).json({ 
+        error: "Failed to create link token", 
+        message: error.message 
+      });
+    }
+  });
+
+  app.post("/api/plaid/exchange-public-token", requireAuth, async (req, res, next) => {
+    try {
+      const { publicToken, institutionId, institutionName } = req.body;
+      
+      if (!publicToken) {
+        return res.status(400).json({ error: "Public token is required" });
+      }
+      
+      // Exchange public token for access token
+      const accessToken = await exchangePublicToken(publicToken);
+      
+      // Create a new Plaid item in our database
+      const plaidItem = await storage.createPlaidItem({
+        userId: req.user._id,
+        accessToken,
+        itemId: publicToken, // This will be updated with the real item ID when we fetch accounts
+        institutionId: institutionId || "unknown",
+        institutionName: institutionName || "Unknown Institution"
+      });
+      
+      // Fetch accounts for this item
+      const accounts = await getAccounts(accessToken);
+      
+      // Create accounts in our database
+      const savedAccounts = [];
+      for (const account of accounts) {
+        const newAccount = await storage.createAccount({
+          userId: req.user._id,
+          name: account.name,
+          type: account.type,
+          subtype: account.subtype || "",
+          plaidAccountId: account.account_id,
+          plaidItemId: plaidItem._id,
+          balance: account.balances.available || account.balances.current || 0,
+          currency: account.balances.iso_currency_code || "USD",
+          mask: account.mask || "",
+          officialName: account.official_name || account.name,
+          isPlaidConnected: true,
+          description: `${account.name} - ${account.type}`
+        });
+        savedAccounts.push(newAccount);
+      }
+      
+      // Update the plaid item with the correct item ID
+      if (accounts.length > 0 && accounts[0].item_id) {
+        await storage.updatePlaidItem(plaidItem._id.toString(), {
+          itemId: accounts[0].item_id
+        });
+      }
+      
+      res.json({
+        success: true,
+        plaidItem,
+        accounts: savedAccounts
+      });
+    } catch (error) {
+      console.error("Error exchanging public token:", error);
+      res.status(500).json({ 
+        error: "Failed to exchange public token", 
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/plaid/accounts", requireAuth, async (req, res, next) => {
+    try {
+      // Get Plaid items for this user
+      const plaidItems = await storage.getPlaidItemsByUserId(req.user._id.toString());
+      
+      // Get all accounts linked to these Plaid items
+      const accounts = [];
+      for (const item of plaidItems) {
+        const itemAccounts = await storage.getAccountsByPlaidItemId(item._id.toString());
+        accounts.push(...itemAccounts);
+      }
+      
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error getting Plaid accounts:", error);
+      res.status(500).json({ 
+        error: "Failed to get Plaid accounts", 
+        message: error.message 
+      });
+    }
+  });
+
+  app.post("/api/plaid/sync-transactions", requireAuth, async (req, res, next) => {
+    try {
+      const { plaidItemId } = req.body;
+      
+      if (!plaidItemId) {
+        return res.status(400).json({ error: "Plaid item ID is required" });
+      }
+      
+      // Get the Plaid item
+      const plaidItem = await storage.getPlaidItemById(plaidItemId);
+      if (!plaidItem) {
+        return res.status(404).json({ error: "Plaid item not found" });
+      }
+      
+      // Verify that the Plaid item belongs to the user
+      if (plaidItem.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Get transactions for the last 30 days
+      const endDate = new Date().toISOString().slice(0, 10);
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      
+      const plaidTransactions = await getTransactions(
+        plaidItem.accessToken,
+        startDate,
+        endDate
+      );
+      
+      // Get accounts for this Plaid item
+      const accounts = await storage.getAccountsByPlaidItemId(plaidItemId);
+      const accountMap = new Map(accounts.map(account => [account.plaidAccountId, account]));
+      
+      // Sync transactions
+      const newTransactions = [];
+      const categoriesMap = new Map();
+      
+      // Get all categories to check if we need to create new ones
+      const existingCategories = await storage.getAllCategories();
+      for (const category of existingCategories) {
+        categoriesMap.set(category.name.toLowerCase(), category);
+      }
+      
+      for (const transaction of plaidTransactions) {
+        // Skip pending transactions
+        if (transaction.pending) continue;
+        
+        // Check if account exists in our system
+        const account = accountMap.get(transaction.account_id);
+        if (!account) continue;
+        
+        // Check if we need to create a category
+        let categoryId = null;
+        if (transaction.category && transaction.category.length > 0) {
+          const categoryName = transaction.category[0];
+          if (!categoriesMap.has(categoryName.toLowerCase())) {
+            // Create a new category
+            const newCategory = await storage.createCategory({
+              name: categoryName,
+              icon: 'tag', // Default icon
+              color: '#' + Math.floor(Math.random() * 16777215).toString(16), // Random color
+              userId: null // Global category
+            });
+            categoriesMap.set(categoryName.toLowerCase(), newCategory);
+          }
+          categoryId = categoriesMap.get(categoryName.toLowerCase())._id;
+        }
+        
+        // Create transaction in our system
+        const newTransaction = await storage.createTransaction({
+          userId: req.user._id,
+          description: transaction.name,
+          amount: Math.abs(transaction.amount),
+          isIncome: transaction.amount < 0, // Negative amount in Plaid means money in
+          date: new Date(transaction.date),
+          accountId: account._id,
+          categoryId,
+          notes: transaction.category ? transaction.category.join(', ') : '',
+          receiptImageUrl: ''
+        });
+        
+        newTransactions.push(newTransaction);
+      }
+      
+      // Update account balances
+      for (const account of accounts) {
+        try {
+          const balances = await getBalances(plaidItem.accessToken);
+          const plaidAccount = balances.find(a => a.account_id === account.plaidAccountId);
+          
+          if (plaidAccount) {
+            await storage.updateAccount(account._id.toString(), {
+              balance: plaidAccount.balances.available || plaidAccount.balances.current || 0
+            });
+          }
+        } catch (error) {
+          console.error(`Error updating balance for account ${account._id}:`, error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        transactionsAdded: newTransactions.length,
+        transactions: newTransactions
+      });
+    } catch (error) {
+      console.error("Error syncing transactions:", error);
+      res.status(500).json({ 
+        error: "Failed to sync transactions", 
+        message: error.message 
+      });
+    }
+  });
+
+  app.delete("/api/plaid/items/:id", requireAuth, async (req, res, next) => {
+    try {
+      const plaidItem = await storage.getPlaidItemById(req.params.id);
+      if (!plaidItem) {
+        return res.status(404).json({ error: "Plaid item not found" });
+      }
+      
+      // Verify that the Plaid item belongs to the user
+      if (plaidItem.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Delete all accounts linked to this Plaid item
+      const accounts = await storage.getAccountsByPlaidItemId(req.params.id);
+      for (const account of accounts) {
+        await storage.deleteAccount(account._id.toString());
+      }
+      
+      // Delete the Plaid item
+      const success = await storage.deletePlaidItem(req.params.id);
+      if (success) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ error: "Failed to delete Plaid item" });
+      }
+    } catch (error) {
+      console.error("Error deleting Plaid item:", error);
+      res.status(500).json({ 
+        error: "Failed to delete Plaid item", 
+        message: error.message 
+      });
     }
   });
 

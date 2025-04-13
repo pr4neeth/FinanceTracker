@@ -44,6 +44,8 @@ import { Loader2, Plus, CreditCard, Wallet, Building, Trash2, PencilLine } from 
 
 import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
+import PlaidLinkComponent from "@/components/PlaidLinkComponent";
+import LinkedAccountsList from "@/components/LinkedAccountsList";
 
 // Account form schema
 const accountFormSchema = z.object({
