@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import { checkBudgetAlerts } from "./budget-alerts";
 import { sendBudgetAlertEmail } from "./email";
+import { checkBillReminders, sendAllBillReminders } from "./email-reminders";
 import {
   analyzeReceipt,
   generateFinancialAdvice,
@@ -1777,6 +1778,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('close', () => {
       console.log('Client disconnected from WebSocket');
     });
+  });
+
+  // Bill reminders endpoints - for scheduled notification checks
+  app.post("/api/admin/bill-reminders/check", async (req, res, next) => {
+    try {
+      // This endpoint should be secured in production
+      // For now we'll use a simple API key check from request body
+      const { apiKey } = req.body;
+      if (apiKey !== process.env.ADMIN_API_KEY) {
+        return res.status(403).json({ message: "Invalid API key" });
+      }
+      
+      // Process all users' bill reminders
+      await sendAllBillReminders(storage);
+      res.json({ success: true, message: "Bill reminders check triggered successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Check reminders for a specific user
+  app.post("/api/bill-reminders/check", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      await checkBillReminders(storage, req.user._id.toString());
+      res.json({ success: true, message: "Bill reminders check completed" });
+    } catch (error) {
+      next(error);
+    }
   });
 
   return httpServer;
