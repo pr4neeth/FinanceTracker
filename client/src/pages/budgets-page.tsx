@@ -124,7 +124,7 @@ export default function BudgetsPage() {
   // Update budget mutation
   const updateBudgetMutation = useMutation({
     mutationFn: async (data) => {
-      return await apiRequest("PUT", `/api/budgets/${selectedBudget.id}`, data);
+      return await apiRequest("PUT", `/api/budgets/${selectedBudget._id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
@@ -252,7 +252,7 @@ export default function BudgetsPage() {
               {budgets.map(budget => {
                 const progress = calculateProgress(budget);
                 return (
-                  <Card key={budget.id} className="overflow-hidden">
+                  <Card key={budget._id} className="overflow-hidden">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex justify-between items-start">
                         <div>{getCategoryName(budget.categoryId)}</div>
@@ -276,7 +276,7 @@ export default function BudgetsPage() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction 
-                                  onClick={() => deleteBudgetMutation.mutate(budget.id)}
+                                  onClick={() => deleteBudgetMutation.mutate(budget._id)}
                                   className="bg-red-500 hover:bg-red-600"
                                 >
                                   Delete
@@ -380,7 +380,7 @@ export default function BudgetsPage() {
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
                         {categories?.map(category => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
+                          <SelectItem key={category._id} value={category._id?.toString()}>
                             {category.name}
                           </SelectItem>
                         ))}
