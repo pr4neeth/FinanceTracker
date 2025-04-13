@@ -136,15 +136,31 @@ export default function AiInsightsPage() {
   const [aiPredictionsDisabled, setAiPredictionsDisabled] = useState(false);
   const [aiSavingsDisabled, setAiSavingsDisabled] = useState(false);
   
+  // Error status tracking
+  const [aiError, setAiError] = useState<{
+    message: string;
+    code: string;
+  } | null>(null);
+  
   // Get financial advice mutation
   const getAdviceMutation = useMutation({
     mutationFn: async (data) => {
       const response = await apiRequest("POST", "/api/financial-advice", data);
+      if (response.status === 402) {
+        const errorData = await response.json();
+        setAiError(errorData);
+        setAiAdviceDisabled(true);
+        throw new Error(errorData.message);
+      }
       return await response.json();
     },
     onError: (error) => {
-      // Check if error is related to OpenAI API quota
-      if (error.message && error.message.includes("OpenAI API quota exceeded")) {
+      // Check if error is related to OpenAI API issues
+      if (error.message && (
+        error.message.includes("OpenAI API quota exceeded") || 
+        error.message.includes("API key") ||
+        error.message.includes("AI service")
+      )) {
         setAiAdviceDisabled(true);
       }
     }

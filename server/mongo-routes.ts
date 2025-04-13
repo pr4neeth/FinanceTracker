@@ -1821,8 +1821,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If we have enough data, call the OpenAI API
       if (pastExpenses.length > 0) {
-        const predictions = await predictExpenses(pastExpenses);
-        res.json(predictions);
+        try {
+          const predictions = await predictExpenses(pastExpenses);
+          res.json(predictions);
+        } catch (aiError: any) {
+          console.error("OpenAI error predicting expenses:", aiError);
+          
+          // Handle specific errors
+          if (aiError.message?.includes("API key")) {
+            return res.status(402).json({
+              message: "AI service configuration error",
+              error: "API_CONFIG_ERROR"
+            });
+          } else if (aiError.message?.includes("quota")) {
+            return res.status(402).json({
+              message: "AI service quota exceeded. Try again later.",
+              error: "QUOTA_EXCEEDED"
+            });
+          }
+          
+          // Generate synthetic predictions as a fallback
+          // Note: This would use some simple average/trend calculations instead
+          return res.status(200).json([
+            { 
+              category: "AI Service Unavailable",
+              predictedAmount: 0,
+              confidence: 0
+            }
+          ]);
+        }
       } else {
         res.json([]);
       }
@@ -1880,8 +1907,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If we have enough data, call the OpenAI API
       if (formattedTransactions.length > 0) {
-        const suggestions = await suggestSavings(formattedTransactions, monthlyIncome);
-        res.json(suggestions);
+        try {
+          const suggestions = await suggestSavings(formattedTransactions, monthlyIncome);
+          res.json(suggestions);
+        } catch (aiError: any) {
+          console.error("OpenAI error generating savings suggestions:", aiError);
+          
+          // Handle specific errors
+          if (aiError.message?.includes("API key")) {
+            return res.status(402).json({
+              message: "AI service configuration error",
+              error: "API_CONFIG_ERROR"
+            });
+          } else if (aiError.message?.includes("quota")) {
+            return res.status(402).json({
+              message: "AI service quota exceeded. Try again later.",
+              error: "QUOTA_EXCEEDED"
+            });
+          }
+          
+          // Return empty array as fallback with a specific status
+          return res.status(200).json([
+            { 
+              suggestion: "AI Service temporarily unavailable. Please try again later.",
+              estimatedSaving: 0,
+              difficulty: "unknown"
+            }
+          ]);
+        }
       } else {
         res.json([]);
       }
@@ -1944,14 +1997,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       // Generate advice
-      const advice = await generateFinancialAdvice(topic, question, {
-        income,
-        expenses,
-        savings,
-        goals: formattedGoals
-      });
-      
-      res.json({ advice });
+      try {
+        const advice = await generateFinancialAdvice(topic, question, {
+          income,
+          expenses,
+          savings,
+          goals: formattedGoals
+        });
+        
+        res.json({ advice });
+      } catch (aiError: any) {
+        console.error("OpenAI error generating financial advice:", aiError);
+        
+        // Handle specific errors
+        if (aiError.message?.includes("API key")) {
+          return res.status(402).json({
+            message: "AI service configuration error",
+            error: "API_CONFIG_ERROR"
+          });
+        } else if (aiError.message?.includes("quota")) {
+          return res.status(402).json({
+            message: "AI service quota exceeded. Try again later.",
+            error: "QUOTA_EXCEEDED"
+          });
+        }
+        
+        // Return a general fallback response
+        return res.status(200).json({ 
+          advice: "Our AI advisor is temporarily unavailable. Please try again later. In the meantime, you might want to review your recent transactions and budget allocations manually."
+        });
+      }
     } catch (error) {
       console.error("Error generating financial advice:", error);
       res.status(500).json({ error: "Failed to generate financial advice" });
