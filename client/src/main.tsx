@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import TransactionsPage from "@/pages/transactions-page";
 import BudgetsPage from "@/pages/budgets-page";
 import BillsPage from "@/pages/bills-page";
+import AccountsPage from "@/pages/accounts-page";
 import AiInsightsPage from "@/pages/ai-insights-page";
 import { AuthProvider, useAuth } from "@/hooks/use-simple-auth";
 import {
@@ -134,6 +135,12 @@ function AppContent() {
         <Route path="/insights">
           <ProtectedRoute>
             <AiInsightsPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/accounts">
+          <ProtectedRoute>
+            <AccountsPage />
           </ProtectedRoute>
         </Route>
 
