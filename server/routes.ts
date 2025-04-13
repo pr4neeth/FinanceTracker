@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.mongodb";
 import { setupAuth } from "./auth";
+import "./mongodb"; // Import MongoDB connection
 import multer from "multer";
 import { analyzeReceipt, categorizeTransaction, generateFinancialAdvice, predictExpenses, suggestSavings } from "./openai";
 import { checkBudgetAlerts } from "./budget-alerts";

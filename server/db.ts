@@ -1,15 +1,13 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
+import mongoose from 'mongoose';
+import './mongodb'; // Import the MongoDB connection
+import * as mongoModels from './models';
 
-neonConfig.webSocketConstructor = ws;
+// Re-export the models from models.ts
+export const models = mongoModels;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
-
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// This is a wrapper to maintain compatibility with code that expects the old PostgreSQL interface
+// In practice, most code should migrate to directly using the Mongoose models
+export const db = {
+  // Placeholder to maintain compatibility
+  // Actual database operations should use Mongoose models directly
+};

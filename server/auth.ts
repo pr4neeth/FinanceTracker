@@ -4,12 +4,12 @@ import { Express } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
+import { storage } from "./storage.mongodb";
+import { UserDocument } from "./models";
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User extends UserDocument {}
   }
 }
 
@@ -60,8 +60,10 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser(async (id: number, done) => {
+  passport.serializeUser((user: UserDocument, done) => {
+    done(null, user._id.toString());
+  });
+  passport.deserializeUser(async (id: string, done) => {
     try {
       const user = await storage.getUser(id);
       done(null, user);
@@ -92,14 +94,14 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: UserDocument | false, info: any) => {
       if (err) {
         return next(err);
       }
       if (!user) {
         return res.status(401).json({ message: "Invalid username or password" });
       }
-      req.login(user, (err) => {
+      req.login(user, (err: Error) => {
         if (err) {
           return next(err);
         }
@@ -117,9 +119,10 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const user = req.user as SelectUser;
+    const user = req.user as UserDocument;
     // Don't return the password hash
-    const { password, ...userWithoutPassword } = user;
+    const userObj = user.toObject();
+    const { password, ...userWithoutPassword } = userObj;
     res.json(userWithoutPassword);
   });
 }
