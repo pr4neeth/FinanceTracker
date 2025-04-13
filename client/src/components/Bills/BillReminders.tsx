@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays } from "date-fns";
 import {
   AlertTriangle,
@@ -7,6 +7,7 @@ import {
   Calendar,
   CalendarCheck,
   ChevronRight,
+  Check,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 interface BillReminder {
   _id: string;
@@ -33,6 +35,7 @@ interface BillReminder {
 const BillReminders = () => {
   const [show, setShow] = useState(true);
   const [_, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   
   // Fetch upcoming bills (due in the next 14 days)
   const { data: upcomingBills, isLoading } = useQuery({
@@ -41,6 +44,29 @@ const BillReminders = () => {
       const response = await fetch("/api/bills/upcoming?days=14");
       if (!response.ok) throw new Error("Failed to fetch upcoming bills");
       return await response.json();
+    }
+  });
+  
+  // Mutation to mark a bill as paid
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (billId: string) => {
+      const response = await apiRequest("PATCH", `/api/bills/${billId}`, { isPaid: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/upcoming"] });
+      toast({
+        title: "Bill marked as paid",
+        description: "The bill has been marked as paid successfully.",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to mark bill as paid",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   });
 
@@ -120,9 +146,21 @@ const BillReminders = () => {
                         </p>
                       </div>
                     </div>
-                    <span className="font-semibold">
-                      ${bill.amount.toFixed(2)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        ${bill.amount.toFixed(2)}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="ml-2 bg-white hover:bg-green-50 border-green-200 text-green-700"
+                        disabled={markAsPaidMutation.isPending}
+                        onClick={() => markAsPaidMutation.mutate(bill._id)}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Paid
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -149,9 +187,21 @@ const BillReminders = () => {
                         </p>
                       </div>
                     </div>
-                    <span className="font-semibold">
-                      ${bill.amount.toFixed(2)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        ${bill.amount.toFixed(2)}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="ml-2 bg-white hover:bg-green-50 border-green-200 text-green-700"
+                        disabled={markAsPaidMutation.isPending}
+                        onClick={() => markAsPaidMutation.mutate(bill._id)}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Paid
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -178,9 +228,21 @@ const BillReminders = () => {
                         </p>
                       </div>
                     </div>
-                    <span className="font-semibold">
-                      ${bill.amount.toFixed(2)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        ${bill.amount.toFixed(2)}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="ml-2 bg-white hover:bg-green-50 border-green-200 text-green-700"
+                        disabled={markAsPaidMutation.isPending}
+                        onClick={() => markAsPaidMutation.mutate(bill._id)}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Paid
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
