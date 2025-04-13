@@ -7,11 +7,11 @@ import { format } from "date-fns";
 import { ShoppingCart, Film, Utensils, Car, Briefcase, Gift, Building } from "lucide-react";
 
 interface Transaction {
-  id: number;
+  _id: string;
   description: string;
   amount: number;
   date: string;
-  categoryId: number | null;
+  categoryId: string | null;
   isIncome: boolean;
 }
 

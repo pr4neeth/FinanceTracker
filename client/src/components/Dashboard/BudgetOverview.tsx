@@ -7,15 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useBudgetAlerts } from "@/hooks/use-budget-alerts";
 
 interface Budget {
-  id: number;
-  categoryId: number;
+  _id: string;
+  categoryId: string;
   amount: number;
   period: string;
   alertThreshold: number;
 }
 
 interface Category {
-  id: number;
+  _id: string;
   name: string;
   icon: string;
   color: string;
@@ -51,9 +51,9 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
   });
   
   // Get category name from ID
-  const getCategoryName = (categoryId: number) => {
+  const getCategoryName = (categoryId: string) => {
     if (!categories) return "Loading...";
-    const category = categories.find((c: any) => c.id === categoryId);
+    const category = categories.find((c: any) => c._id === categoryId);
     return category ? category.name : `Category ${categoryId}`;
   };
 
@@ -114,7 +114,7 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
               const isCloseToLimit = percentage >= (budget.alertThreshold || 80) && percentage <= 100;
               
               return (
-                <div key={budget.id}>
+                <div key={budget._id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium text-neutral-700">
                       {getCategoryName(budget.categoryId)}
@@ -153,7 +153,7 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
                   console.log("Test Alert button clicked");
                   if (sortedBudgets && sortedBudgets.length > 0 && categories) {
                     const budget = sortedBudgets[0];
-                    const category = categories.find((c: any) => c.id === budget.categoryId);
+                    const category = categories.find((c: any) => c._id === budget.categoryId);
                     const categoryName = category ? category.name : `Category ${budget.categoryId}`;
                     const spentAmount = getSpendingAmount(budget);
                     
