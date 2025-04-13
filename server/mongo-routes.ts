@@ -1,7 +1,7 @@
 import { Express, Request, Response, NextFunction } from "express";
 import { Server } from "http";
 import { storage } from "./mongo-storage";
-import { setupAuth } from "./mongo-auth";
+import { setupAuth, requireAuth } from "./mongo-auth";
 import multer from "multer";
 import { WebSocketServer } from "ws";
 import path from "path";
@@ -84,11 +84,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/categories", async (req, res, next) => {
+  app.post("/api/categories", requireAuth, async (req, res, next) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
       const categoryData = {
         ...req.body,
         userId: req.user._id
@@ -158,11 +155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account routes
-  app.get("/api/accounts", async (req, res, next) => {
+  app.get("/api/accounts", requireAuth, async (req, res, next) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
       const accounts = await storage.getAccountsByUserId(req.user._id.toString());
       res.json(accounts);
     } catch (error) {
@@ -170,11 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/accounts", async (req, res, next) => {
+  app.post("/api/accounts", requireAuth, async (req, res, next) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
       const accountData = {
         ...req.body,
         userId: req.user._id
