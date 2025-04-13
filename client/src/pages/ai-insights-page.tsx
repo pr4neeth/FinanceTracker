@@ -219,7 +219,7 @@ export default function AiInsightsPage() {
       />
       
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar activePage="insights" />
+        <Sidebar activePage="ai-insights" />
         
         <main className="flex-1 overflow-y-auto p-4 bg-neutral-50">
           <div className="mb-6">

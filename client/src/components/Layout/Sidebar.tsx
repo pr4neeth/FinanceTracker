@@ -43,9 +43,7 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
     {
       heading: "AI Tools",
       items: [
-        { name: "insights", label: "AI Insights", icon: <Lightbulb className="w-5 h-5 mr-2" />, path: "/insights" },
-        { name: "predictions", label: "Expense Predictions", icon: <TrendingUp className="w-5 h-5 mr-2" />, path: "/predictions" },
-        { name: "advice", label: "Financial Advice", icon: <MessageSquare className="w-5 h-5 mr-2" />, path: "/advice" },
+        { name: "ai-insights", label: "AI Financial Intelligence", icon: <Lightbulb className="w-5 h-5 mr-2" />, path: "/ai-insights" },
       ]
     },
     {

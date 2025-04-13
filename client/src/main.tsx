@@ -132,7 +132,7 @@ function AppContent() {
           </ProtectedRoute>
         </Route>
 
-        <Route path="/insights">
+        <Route path="/ai-insights">
           <ProtectedRoute>
             <AiInsightsPage />
           </ProtectedRoute>
