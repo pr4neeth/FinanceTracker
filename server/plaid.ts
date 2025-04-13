@@ -1,102 +1,181 @@
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
-import * as dotenv from 'dotenv';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Ensure Plaid environment variables are set
-if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET || !process.env.PLAID_ENV) {
-  console.warn('Warning: PLAID_CLIENT_ID, PLAID_SECRET, and/or PLAID_ENV environment variables are not set.');
-  console.warn('Plaid integration will be disabled. Set these environment variables to enable Plaid integration.');
+// Check if required environment variables are set
+const requiredEnvVars = ['PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.warn(`Warning: Missing required Plaid environment variables: ${missingEnvVars.join(', ')}`);
+  console.warn('Plaid API functionality will be limited. Set these variables in your .env file.');
 }
 
-// Set up Plaid configuration
+// Determine Plaid environment from env var
+const getPlaidEnvironment = () => {
+  const env = process.env.PLAID_ENV?.toLowerCase() || 'sandbox';
+  switch (env) {
+    case 'production':
+      return PlaidEnvironments.production;
+    case 'development':
+      return PlaidEnvironments.development;
+    case 'sandbox':
+    default:
+      return PlaidEnvironments.sandbox;
+  }
+};
+
+// Create a new configuration for Plaid
 const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
+  basePath: getPlaidEnvironment(),
   baseOptions: {
     headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
+      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID || '',
+      'PLAID-SECRET': process.env.PLAID_SECRET || '',
     },
   },
 });
 
+// Create Plaid client
 export const plaidClient = new PlaidApi(configuration);
 
-// Create a link token
-export const createLinkToken = async (userId: string): Promise<string> => {
+/**
+ * Creates a link token for the Plaid Link flow
+ * @param userId The user ID to associate with the link token
+ * @returns The link token string
+ */
+export async function createLinkToken(userId: string): Promise<string> {
   try {
-    const request = {
+    const response = await plaidClient.linkTokenCreate({
       user: {
         client_user_id: userId,
       },
       client_name: 'Finance Tracker',
-      products: ['transactions', 'auth'] as Products[],
+      products: ['transactions'] as Products[],
       country_codes: ['US'] as CountryCode[],
       language: 'en',
-    };
+    });
 
-    const response = await plaidClient.linkTokenCreate(request);
     return response.data.link_token;
   } catch (error) {
     console.error('Error creating link token:', error);
-    throw error;
+    throw new Error('Failed to create link token');
   }
-};
+}
 
-// Exchange public token for access token
-export const exchangePublicToken = async (publicToken: string): Promise<string> => {
+/**
+ * Exchanges a public token for an access token
+ * @param publicToken The public token received from the Plaid Link flow
+ * @returns The access token and item ID
+ */
+export async function exchangePublicToken(publicToken: string): Promise<{ access_token: string; item_id: string }> {
   try {
     const response = await plaidClient.itemPublicTokenExchange({
       public_token: publicToken,
     });
-    return response.data.access_token;
+
+    return {
+      access_token: response.data.access_token,
+      item_id: response.data.item_id,
+    };
   } catch (error) {
     console.error('Error exchanging public token:', error);
-    throw error;
+    throw new Error('Failed to exchange public token');
   }
-};
+}
 
-// Get accounts
-export const getAccounts = async (accessToken: string) => {
+/**
+ * Gets accounts for a given access token
+ * @param accessToken The access token for the item
+ * @returns Array of accounts
+ */
+export async function getAccounts(accessToken: string) {
   try {
     const response = await plaidClient.accountsGet({
       access_token: accessToken,
     });
+
     return response.data.accounts;
   } catch (error) {
     console.error('Error getting accounts:', error);
-    throw error;
+    throw new Error('Failed to get accounts');
   }
-};
+}
 
-// Get transactions
-export const getTransactions = async (
-  accessToken: string,
-  startDate: string,
-  endDate: string
-) => {
-  try {
-    const response = await plaidClient.transactionsGet({
-      access_token: accessToken,
-      start_date: startDate,
-      end_date: endDate,
-    });
-    return response.data.transactions;
-  } catch (error) {
-    console.error('Error getting transactions:', error);
-    throw error;
-  }
-};
-
-// Get balances
-export const getBalances = async (accessToken: string) => {
+/**
+ * Gets account balances for a given access token
+ * @param accessToken The access token for the item
+ * @returns Array of accounts with balance information
+ */
+export async function getBalances(accessToken: string) {
   try {
     const response = await plaidClient.accountsBalanceGet({
       access_token: accessToken,
     });
+
     return response.data.accounts;
   } catch (error) {
     console.error('Error getting balances:', error);
-    throw error;
+    throw new Error('Failed to get balances');
   }
-};
+}
+
+/**
+ * Gets transactions for a given access token
+ * @param accessToken The access token for the item
+ * @param startDate Optional start date for transactions (defaults to 30 days ago)
+ * @param endDate Optional end date for transactions (defaults to today)
+ * @returns Array of transactions
+ */
+export async function getTransactions(
+  accessToken: string,
+  startDate?: string,
+  endDate?: string
+) {
+  try {
+    // Default to the last 30 days if dates not provided
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const start = startDate || thirtyDaysAgo.toISOString().slice(0, 10);
+    const end = endDate || today.toISOString().slice(0, 10);
+
+    const request = {
+      access_token: accessToken,
+      start_date: start,
+      end_date: end,
+    };
+
+    const response = await plaidClient.transactionsGet(request);
+    let transactions = response.data.transactions;
+
+    // Handle pagination if needed
+    const totalTransactions = response.data.total_transactions;
+    let hasMore = transactions.length < totalTransactions;
+    const batchSize = 500; // The maximum number of transactions to fetch in one request
+
+    while (hasMore) {
+      const paginatedRequest = {
+        access_token: accessToken,
+        start_date: start,
+        end_date: end,
+        options: {
+          offset: transactions.length,
+          count: batchSize,
+        },
+      };
+
+      const paginatedResponse = await plaidClient.transactionsGet(paginatedRequest);
+      const newTransactions = paginatedResponse.data.transactions;
+      transactions = transactions.concat(newTransactions);
+      hasMore = transactions.length < totalTransactions;
+    }
+
+    return transactions;
+  } catch (error) {
+    console.error('Error getting transactions:', error);
+    throw new Error('Failed to get transactions');
+  }
+}

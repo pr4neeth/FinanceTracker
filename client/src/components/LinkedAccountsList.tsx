@@ -1,18 +1,12 @@
-import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import React, { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { apiRequest } from '@/lib/queryClient';
+import { Loader2, RefreshCw, Trash, CreditCard, DollarSign, PiggyBank, Bank, Building } from 'lucide-react';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Account {
   _id: string;
@@ -36,183 +30,198 @@ interface LinkedAccountsListProps {
 export const LinkedAccountsList: React.FC<LinkedAccountsListProps> = ({
   showSyncButton = true,
   includeActions = true,
-  titlePrefix = 'Linked',
+  titlePrefix = '',
 }) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
 
-  // Fetch linked accounts
-  const { data: accounts, isLoading, error } = useQuery<Account[]>({
+  // Query to get all linked accounts
+  const { 
+    data: accounts = [], 
+    isLoading, 
+    isError, 
+    refetch 
+  } = useQuery({
     queryKey: ['/api/plaid/accounts'],
     queryFn: async () => {
-      try {
-        const res = await apiRequest('GET', '/api/plaid/accounts');
-        return await res.json();
-      } catch (error) {
-        console.error('Error fetching linked accounts:', error);
-        return [];
-      }
-    }
+      const response = await apiRequest('GET', '/api/plaid/accounts');
+      return response.json();
+    },
   });
 
-  // Sync transactions mutation
-  const syncTransactionsMutation = useMutation({
-    mutationFn: async (plaidItemId: string) => {
-      const res = await apiRequest('POST', '/api/plaid/sync-transactions', { plaidItemId });
-      return await res.json();
+  // Mutation to sync transactions for an account
+  const syncMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      setSyncingAccountId(accountId);
+      const response = await apiRequest('POST', '/api/plaid/sync-transactions', { accountId });
+      return response.json();
     },
     onSuccess: (data) => {
       toast({
-        title: 'Transactions synced',
-        description: `Added ${data.transactionsAdded} new transactions.`,
+        title: 'Sync successful',
+        description: `${data.newTransactionsCount} new transactions synced.`,
       });
-      // Invalidate transactions and accounts queries
+      // Invalidate transactions queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Error syncing transactions',
-        description: error.message || 'Something went wrong',
+        title: 'Sync failed',
+        description: 'Failed to sync transactions. Please try again.',
         variant: 'destructive',
       });
+      console.error('Error syncing transactions:', error);
+    },
+    onSettled: () => {
+      setSyncingAccountId(null);
     },
   });
 
-  // Delete account mutation
-  const deleteAccountMutation = useMutation({
+  // Mutation to unlink an account
+  const unlinkMutation = useMutation({
     mutationFn: async (plaidItemId: string) => {
-      const res = await apiRequest('DELETE', `/api/plaid/items/${plaidItemId}`);
-      return res.status === 204;
+      const response = await apiRequest('DELETE', `/api/plaid/items/${plaidItemId}`);
+      return response.ok;
     },
     onSuccess: () => {
       toast({
         title: 'Account unlinked',
-        description: 'Bank account has been successfully unlinked',
+        description: 'The bank account has been successfully unlinked.',
       });
-      // Invalidate accounts query
-      queryClient.invalidateQueries({ queryKey: ['/api/plaid/accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
+      refetch();
+      // Invalidate transactions queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Error unlinking account',
-        description: error.message || 'Something went wrong',
+        title: 'Failed to unlink account',
+        description: 'There was an error unlinking your account. Please try again.',
         variant: 'destructive',
       });
+      console.error('Error unlinking account:', error);
     },
   });
 
-  // Group accounts by institution (plaidItemId)
-  const accountsByInstitution: Record<string, Account[]> = {};
-  
-  accounts?.forEach(account => {
-    if (!accountsByInstitution[account.plaidItemId]) {
-      accountsByInstitution[account.plaidItemId] = [];
+  const getAccountIcon = (type: string, subtype?: string) => {
+    switch (type.toLowerCase()) {
+      case 'depository':
+        return subtype?.toLowerCase() === 'checking' ? <Bank className="h-5 w-5" /> : <PiggyBank className="h-5 w-5" />;
+      case 'credit':
+        return <CreditCard className="h-5 w-5" />;
+      case 'loan':
+        return <Building className="h-5 w-5" />;
+      case 'investment':
+        return <DollarSign className="h-5 w-5" />;
+      default:
+        return <Bank className="h-5 w-5" />;
     }
-    accountsByInstitution[account.plaidItemId].push(account);
-  });
+  };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-4">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="flex justify-center items-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2">Loading linked accounts...</span>
       </div>
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
-      <div className="text-center p-4 text-destructive">
-        Error loading accounts: {error instanceof Error ? error.message : String(error)}
-      </div>
+      <Alert variant="destructive">
+        <AlertTitle>Error loading accounts</AlertTitle>
+        <AlertDescription>
+          There was an error loading your linked accounts. Please refresh the page or try again later.
+        </AlertDescription>
+      </Alert>
     );
   }
 
-  if (!accounts || accounts.length === 0) {
+  if (accounts.length === 0) {
     return (
-      <div className="text-center p-4 text-muted-foreground">
-        No bank accounts linked. Use the Connect button to link your accounts.
-      </div>
+      <Alert>
+        <AlertTitle>No linked accounts</AlertTitle>
+        <AlertDescription>
+          You haven't linked any bank accounts yet. Use the "Link Bank Account" button to connect your accounts.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {Object.entries(accountsByInstitution).map(([plaidItemId, institutionAccounts]) => {
-        // Find the first account to get institution information
-        const firstAccount = institutionAccounts[0];
-        const institutionName = firstAccount.officialName || firstAccount.name.split(' - ')[0];
-        
-        return (
-          <Card key={plaidItemId} className="overflow-hidden">
-            <CardHeader className="bg-muted/50">
-              <CardTitle>{titlePrefix} {institutionName}</CardTitle>
-              <CardDescription>
-                {institutionAccounts.length} {institutionAccounts.length === 1 ? 'account' : 'accounts'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {institutionAccounts.map(account => (
-                  <div key={account._id} className="p-4 flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">{account.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {account.type} {account.subtype ? `· ${account.subtype}` : ''}
-                        {account.mask ? ` · ••••${account.mask}` : ''}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">
-                        {formatCurrency(account.balance, account.currency)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Current balance</div>
-                    </div>
-                  </div>
-                ))}
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {accounts.map((account: Account) => (
+        <Card key={account._id}>
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center">
+                {getAccountIcon(account.type, account.subtype)}
+                <div className="ml-2">
+                  <CardTitle className="text-base">{titlePrefix} {account.name}</CardTitle>
+                  <CardDescription>
+                    {account.officialName && account.officialName !== account.name 
+                      ? account.officialName 
+                      : `${account.type}${account.subtype ? ` - ${account.subtype}` : ''}`}
+                    {account.mask && <span className="ml-1">••{account.mask}</span>}
+                  </CardDescription>
+                </div>
               </div>
-            </CardContent>
-            {includeActions && (
-              <CardFooter className="bg-muted/30 flex justify-between p-3">
-                {showSyncButton && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => syncTransactionsMutation.mutate(plaidItemId)}
-                    disabled={syncTransactionsMutation.isPending}
-                  >
-                    {syncTransactionsMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Sync Transactions
-                  </Button>
-                )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(account.balance, account.currency)}
+            </div>
+          </CardContent>
+          {includeActions && (
+            <CardFooter className="pt-0 flex justify-between">
+              {showSyncButton && (
                 <Button
-                  size="sm"
                   variant="outline"
-                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to unlink this account? This will remove all associated accounts.')) {
-                      deleteAccountMutation.mutate(plaidItemId);
-                    }
-                  }}
-                  disabled={deleteAccountMutation.isPending}
+                  size="sm"
+                  onClick={() => syncMutation.mutate(account._id)}
+                  disabled={syncMutation.isPending && syncingAccountId === account._id}
                 >
-                  {deleteAccountMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {syncMutation.isPending && syncingAccountId === account._id ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Syncing...
+                    </>
                   ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <>
+                      <RefreshCw className="mr-2 h-3 w-3" />
+                      Sync
+                    </>
                   )}
-                  Unlink
                 </Button>
-              </CardFooter>
-            )}
-          </Card>
-        );
-      })}
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm('Are you sure you want to unlink this account? This will remove all transactions associated with this account.')) {
+                    unlinkMutation.mutate(account.plaidItemId);
+                  }
+                }}
+                disabled={unlinkMutation.isPending}
+              >
+                {unlinkMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Unlinking...
+                  </>
+                ) : (
+                  <>
+                    <Trash className="mr-2 h-3 w-3" />
+                    Unlink
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          )}
+        </Card>
+      ))}
     </div>
   );
 };

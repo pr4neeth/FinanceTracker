@@ -607,6 +607,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Plaid API endpoints
+  app.post("/api/plaid/create-link-token", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const linkToken = await createLinkToken(req.user._id.toString());
+      res.json({ link_token: linkToken });
+    } catch (error) {
+      console.error("Error creating link token:", error);
+      res.status(500).json({ error: "Failed to create link token" });
+    }
+  });
+
+  app.post("/api/plaid/set-access-token", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { publicToken, institutionId, institutionName } = req.body;
+      
+      if (!publicToken) {
+        return res.status(400).json({ error: "Missing public token" });
+      }
+      
+      // Exchange public token for access token
+      const accessToken = await exchangePublicToken(publicToken);
+      
+      // Save PlaidItem to database
+      const plaidItem = await storage.createPlaidItem({
+        userId: new Types.ObjectId(req.user._id.toString()),
+        accessToken: accessToken.access_token,
+        itemId: accessToken.item_id,
+        institutionId,
+        institutionName,
+      });
+      
+      // Get accounts associated with this item
+      const accounts = await getAccounts(accessToken.access_token);
+      
+      // Save accounts to database
+      for (const account of accounts) {
+        await storage.createAccount({
+          name: account.name,
+          officialName: account.official_name,
+          type: account.type,
+          subtype: account.subtype,
+          mask: account.mask,
+          balance: account.balances.current || 0,
+          currency: account.balances.iso_currency_code || 'USD',
+          userId: new Types.ObjectId(req.user._id.toString()),
+          plaidItemId: plaidItem._id,
+          plaidAccountId: account.account_id,
+          isPlaidConnected: true,
+          description: `Imported from ${institutionName}`,
+        });
+      }
+      
+      // Fetch and store initial transactions
+      try {
+        const transactions = await getTransactions(accessToken.access_token);
+        
+        for (const transaction of transactions) {
+          // Try to find a matching category
+          let categoryId = null;
+          const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+          
+          if (transaction.category && transaction.category.length > 0) {
+            // Try to match Plaid category to our categories
+            const primaryCategory = transaction.category[0].toLowerCase();
+            for (const category of categories) {
+              if (category.name.toLowerCase().includes(primaryCategory)) {
+                categoryId = category._id;
+                break;
+              }
+            }
+          }
+          
+          await storage.createTransaction({
+            description: transaction.name,
+            date: new Date(transaction.date),
+            amount: transaction.amount,
+            userId: new Types.ObjectId(req.user._id.toString()),
+            categoryId,
+            accountId: transaction.account_id, // This would need to be mapped to your account ID
+            isIncome: transaction.amount < 0, // Assuming negative amounts are income
+            notes: `Imported from ${institutionName}`,
+            receiptImageUrl: "",
+          });
+        }
+      } catch (error) {
+        console.error("Error importing transactions:", error);
+        // Continue even if transaction import fails
+      }
+      
+      res.json({ success: true, message: "Account connected successfully" });
+    } catch (error) {
+      console.error("Error setting access token:", error);
+      res.status(500).json({ error: "Failed to exchange token" });
+    }
+  });
+
+  app.get("/api/plaid/accounts", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get all Plaid-connected accounts for the user
+      const accounts = await storage.getAccountsByUserId(req.user._id.toString());
+      const plaidAccounts = accounts.filter(account => account.isPlaidConnected);
+      
+      res.json(plaidAccounts);
+    } catch (error) {
+      console.error("Error fetching Plaid accounts:", error);
+      res.status(500).json({ error: "Failed to fetch accounts" });
+    }
+  });
+
+  app.post("/api/plaid/sync-transactions", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { accountId } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: "Missing account ID" });
+      }
+      
+      // Get the account
+      const account = await storage.getAccountById(accountId);
+      
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      
+      if (!account.isPlaidConnected || !account.plaidItemId) {
+        return res.status(400).json({ error: "Account is not connected to Plaid" });
+      }
+      
+      // Get the Plaid item
+      const plaidItem = await storage.getPlaidItemById(account.plaidItemId.toString());
+      
+      if (!plaidItem) {
+        return res.status(404).json({ error: "Plaid item not found" });
+      }
+      
+      // Get the latest balance
+      const balances = await getBalances(plaidItem.accessToken);
+      const accountBalance = balances.find(b => b.account_id === account.plaidAccountId);
+      
+      if (accountBalance) {
+        // Update the account balance
+        await storage.updateAccount(account._id.toString(), {
+          balance: accountBalance.balances.current || 0
+        });
+      }
+      
+      // Get transactions for this account
+      const transactions = await getTransactions(plaidItem.accessToken);
+      const accountTransactions = transactions.filter(t => t.account_id === account.plaidAccountId);
+      
+      // Store new transactions
+      const existingTransactions = await storage.getTransactionsByUserId(req.user._id.toString());
+      let newTransactions = 0;
+      
+      for (const transaction of accountTransactions) {
+        // Check if this transaction already exists
+        const exists = existingTransactions.some(t => 
+          t.description === transaction.name && 
+          new Date(t.date).toDateString() === new Date(transaction.date).toDateString() &&
+          Math.abs(t.amount - transaction.amount) < 0.001
+        );
+        
+        if (!exists) {
+          // Try to find a matching category
+          let categoryId = null;
+          const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+          
+          if (transaction.category && transaction.category.length > 0) {
+            // Try to match Plaid category to our categories
+            const primaryCategory = transaction.category[0].toLowerCase();
+            for (const category of categories) {
+              if (category.name.toLowerCase().includes(primaryCategory)) {
+                categoryId = category._id;
+                break;
+              }
+            }
+          }
+          
+          await storage.createTransaction({
+            description: transaction.name,
+            date: new Date(transaction.date),
+            amount: transaction.amount,
+            userId: new Types.ObjectId(req.user._id.toString()),
+            categoryId,
+            accountId: account._id,
+            isIncome: transaction.amount < 0, // Assuming negative amounts are income
+            notes: `Imported from ${account.name}`,
+            receiptImageUrl: "",
+          });
+          
+          newTransactions++;
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Synced ${newTransactions} new transactions`,
+        newTransactionsCount: newTransactions
+      });
+    } catch (error) {
+      console.error("Error syncing transactions:", error);
+      res.status(500).json({ error: "Failed to sync transactions" });
+    }
+  });
+
   // Bill routes
   app.get("/api/bills", async (req, res, next) => {
     try {
@@ -828,83 +1049,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Plaid API routes
+  // Plaid API endpoints
   app.post("/api/plaid/create-link-token", requireAuth, async (req, res, next) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const linkToken = await createLinkToken(req.user._id.toString());
-      res.json({ linkToken });
+      res.json({ link_token: linkToken });
     } catch (error) {
       console.error("Error creating link token:", error);
-      res.status(500).json({ 
-        error: "Failed to create link token", 
-        message: error.message 
-      });
+      res.status(500).json({ error: "Failed to create link token" });
     }
   });
 
-  app.post("/api/plaid/exchange-public-token", requireAuth, async (req, res, next) => {
+  app.post("/api/plaid/set-access-token", requireAuth, async (req, res, next) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const { publicToken, institutionId, institutionName } = req.body;
       
       if (!publicToken) {
-        return res.status(400).json({ error: "Public token is required" });
+        return res.status(400).json({ error: "Missing public token" });
       }
       
       // Exchange public token for access token
-      const accessToken = await exchangePublicToken(publicToken);
+      const exchangeResult = await exchangePublicToken(publicToken);
       
-      // Create a new Plaid item in our database
+      // Save PlaidItem to database
       const plaidItem = await storage.createPlaidItem({
-        userId: req.user._id,
-        accessToken,
-        itemId: publicToken, // This will be updated with the real item ID when we fetch accounts
+        userId: new Types.ObjectId(req.user._id.toString()),
+        accessToken: exchangeResult.access_token,
+        itemId: exchangeResult.item_id,
         institutionId: institutionId || "unknown",
-        institutionName: institutionName || "Unknown Institution"
+        institutionName: institutionName || "Unknown Institution",
       });
       
-      // Fetch accounts for this item
-      const accounts = await getAccounts(accessToken);
+      // Get accounts associated with this item
+      const accounts = await getAccounts(exchangeResult.access_token);
       
-      // Create accounts in our database
+      // Save accounts to database
       const savedAccounts = [];
       for (const account of accounts) {
         const newAccount = await storage.createAccount({
-          userId: req.user._id,
           name: account.name,
+          officialName: account.official_name,
           type: account.type,
-          subtype: account.subtype || "",
-          plaidAccountId: account.account_id,
+          subtype: account.subtype,
+          mask: account.mask,
+          balance: account.balances.current || 0,
+          currency: account.balances.iso_currency_code || 'USD',
+          userId: new Types.ObjectId(req.user._id.toString()),
           plaidItemId: plaidItem._id,
-          balance: account.balances.available || account.balances.current || 0,
-          currency: account.balances.iso_currency_code || "USD",
-          mask: account.mask || "",
-          officialName: account.official_name || account.name,
+          plaidAccountId: account.account_id,
           isPlaidConnected: true,
-          description: `${account.name} - ${account.type}`
+          description: `Imported from ${institutionName}`,
         });
         savedAccounts.push(newAccount);
       }
       
-      // Update the plaid item with the correct item ID
-      if (accounts.length > 0 && accounts[0].item_id) {
-        await storage.updatePlaidItem(plaidItem._id.toString(), {
-          itemId: accounts[0].item_id
-        });
+      // Fetch and store initial transactions
+      try {
+        const transactions = await getTransactions(exchangeResult.access_token);
+        
+        for (const transaction of transactions) {
+          // Try to find a matching category
+          let categoryId = null;
+          const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+          
+          if (transaction.category && transaction.category.length > 0) {
+            // Try to match Plaid category to our categories
+            const primaryCategory = transaction.category[0].toLowerCase();
+            for (const category of categories) {
+              if (category.name.toLowerCase().includes(primaryCategory)) {
+                categoryId = category._id;
+                break;
+              }
+            }
+          }
+          
+          await storage.createTransaction({
+            description: transaction.name,
+            date: new Date(transaction.date),
+            amount: Math.abs(transaction.amount),
+            userId: new Types.ObjectId(req.user._id.toString()),
+            categoryId,
+            accountId: new Types.ObjectId(savedAccounts.find(a => a.plaidAccountId === transaction.account_id)?._id?.toString() || null),
+            isIncome: transaction.amount < 0, // Assuming negative amounts are income
+            notes: `Imported from ${institutionName}`,
+            receiptImageUrl: "",
+          });
+        }
+      } catch (error) {
+        console.error("Error importing transactions:", error);
+        // Continue even if transaction import fails
       }
       
-      res.json({
-        success: true,
-        plaidItem,
-        accounts: savedAccounts
-      });
+      res.json({ success: true, message: "Account connected successfully" });
     } catch (error) {
-      console.error("Error exchanging public token:", error);
-      res.status(500).json({ 
-        error: "Failed to exchange public token", 
-        message: error.message 
-      });
+      console.error("Error setting access token:", error);
+      res.status(500).json({ error: "Failed to exchange token" });
     }
   });
+
+  // AI Insights endpoints
 
   app.get("/api/plaid/accounts", requireAuth, async (req, res, next) => {
     try {

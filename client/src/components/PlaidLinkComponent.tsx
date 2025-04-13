@@ -1,20 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Loader2, Link } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
-
-// Function to load the Plaid Link script dynamically
-const loadPlaidLinkScript = () => {
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Plaid Link script'));
-    document.body.appendChild(script);
-  });
-};
 
 interface PlaidLinkComponentProps {
   onSuccess?: (data: any) => void;
@@ -23,83 +11,108 @@ interface PlaidLinkComponentProps {
   className?: string;
 }
 
-export const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
+const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
   onSuccess,
-  buttonText = 'Connect a bank account',
+  buttonText = 'Link Bank Account',
   variant = 'default',
   className = '',
 }) => {
-  const [isScriptLoading, setIsScriptLoading] = useState(false);
-  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mutation to create a link token
-  const createLinkTokenMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/plaid/create-link-token');
-      return await res.json();
-    },
-  });
-
-  // Mutation to exchange the public token
-  const exchangePublicTokenMutation = useMutation({
-    mutationFn: async ({ publicToken, metadata }: { publicToken: string; metadata: any }) => {
-      const res = await apiRequest('POST', '/api/plaid/exchange-public-token', {
-        publicToken,
-        institutionId: metadata.institution?.institution_id,
-        institutionName: metadata.institution?.name,
-      });
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      // Invalidate accounts query to trigger a refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/plaid/accounts'] });
-      
-      if (onSuccess) {
-        onSuccess(data);
-      }
-    },
-  });
-
-  // Open Plaid Link
   const openPlaidLink = useCallback(async () => {
+    setIsLoading(true);
+
     try {
-      setIsScriptLoading(true);
-      
-      // Load Plaid Link script
-      await loadPlaidLinkScript();
-      
-      // Create a link token
-      const { linkToken } = await createLinkTokenMutation.mutateAsync();
-      
-      // @ts-ignore - Plaid Link is loaded from CDN
-      const handler = window.Plaid.create({
-        token: linkToken,
-        onSuccess: async (publicToken: string, metadata: any) => {
-          // Exchange the public token for an access token
-          await exchangePublicTokenMutation.mutateAsync({ publicToken, metadata });
-        },
-        onExit: (err: any) => {
-          if (err) {
-            console.error('Plaid Link error:', err);
+      // Step 1: Get a link token from our server
+      const response = await apiRequest('POST', '/api/plaid/create-link-token');
+      const { link_token } = await response.json();
+
+      if (!link_token) {
+        throw new Error('Failed to get link token');
+      }
+
+      // Step 2: Load Plaid Link
+      const { open } = await loadPlaidLink(link_token);
+
+      // Step 3: Open Plaid Link
+      open({
+        onSuccess: async (public_token: string, metadata: any) => {
+          try {
+            // Step 4: Send public token to the server to exchange it for an access token
+            const exchangeResponse = await apiRequest('POST', '/api/plaid/set-access-token', {
+              publicToken: public_token,
+              institutionId: metadata.institution?.institution_id || '',
+              institutionName: metadata.institution?.name || 'Unknown Institution',
+            });
+
+            const data = await exchangeResponse.json();
+
+            // Step 5: Notify about success
+            toast({
+              title: 'Account connected!',
+              description: 'Your bank account has been successfully linked.',
+            });
+
+            if (onSuccess) {
+              onSuccess(data);
+            }
+          } catch (error) {
+            console.error('Error exchanging public token:', error);
+            toast({
+              title: 'Connection failed',
+              description: 'There was an error connecting your bank account. Please try again.',
+              variant: 'destructive',
+            });
           }
         },
-        onLoad: () => {
-          setIsScriptLoading(false);
+        onExit: () => {
+          setIsLoading(false);
         },
       });
-      
-      // Open Plaid Link
-      handler.open();
     } catch (error) {
-      console.error('Error opening Plaid Link:', error);
-      setIsScriptLoading(false);
+      console.error('Error loading Plaid Link:', error);
+      toast({
+        title: 'Connection failed',
+        description: 'There was an error connecting to Plaid. Please try again later.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
     }
-  }, [createLinkTokenMutation, exchangePublicTokenMutation, onSuccess]);
+  }, [onSuccess, toast]);
 
-  const isLoading = isScriptLoading || 
-                   createLinkTokenMutation.isPending || 
-                   exchangePublicTokenMutation.isPending;
+  // Helper function to load the Plaid Link script
+  const loadPlaidLink = (token: string) => {
+    return new Promise<any>((resolve, reject) => {
+      // Check if Plaid is already loaded
+      if ((window as any).Plaid) {
+        resolve((window as any).Plaid);
+        return;
+      }
+
+      // Load Plaid Link script
+      const script = document.createElement('script');
+      script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+      script.async = true;
+      script.onload = () => {
+        try {
+          const plaidHandler = (window as any).Plaid.create({
+            token,
+            env: process.env.PLAID_ENV || 'sandbox',
+            product: ['transactions'],
+            language: 'en',
+          });
+          resolve(plaidHandler);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      script.onerror = (error) => {
+        reject(error);
+      };
+      document.body.appendChild(script);
+    });
+  };
 
   return (
     <Button
@@ -114,7 +127,10 @@ export const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
           Connecting...
         </>
       ) : (
-        buttonText
+        <>
+          <Link className="mr-2 h-4 w-4" />
+          {buttonText}
+        </>
       )}
     </Button>
   );
