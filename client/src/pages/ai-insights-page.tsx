@@ -205,9 +205,9 @@ export default function AiInsightsPage() {
 
   // Helper function to get prediction trend icon
   const getPredictionTrendIcon = (predictedAmount, currentAmount) => {
-    if (predictedAmount > currentAmount * 1.1) {
+    if (predictedAmount && currentAmount && predictedAmount > currentAmount * 1.1) {
       return <TrendingUp className="h-4 w-4 text-red-500" />;
-    } else if (predictedAmount < currentAmount * 0.9) {
+    } else if (predictedAmount && currentAmount && predictedAmount < currentAmount * 0.9) {
       return <TrendingDown className="h-4 w-4 text-green-500" />;
     }
     return <Search className="h-4 w-4 text-blue-500" />;
@@ -410,16 +410,16 @@ export default function AiInsightsPage() {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-neutral-900">
-                                      ${prediction.predictedAmount.toFixed(2)}
+                                      ${prediction.predictedAmount?.toFixed(2) || '0.00'}
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                       {getPredictionTrendIcon(prediction.predictedAmount, parseFloat(currentAmount))}
                                       <span className="text-sm ml-1">
-                                        {prediction.predictedAmount > parseFloat(currentAmount) * 1.1
+                                        {prediction.predictedAmount && currentAmount && prediction.predictedAmount > parseFloat(currentAmount) * 1.1
                                           ? `+${(((prediction.predictedAmount / parseFloat(currentAmount)) - 1) * 100).toFixed(0)}%`
-                                          : prediction.predictedAmount < parseFloat(currentAmount) * 0.9
+                                          : prediction.predictedAmount && currentAmount && prediction.predictedAmount < parseFloat(currentAmount) * 0.9
                                           ? `-${(((parseFloat(currentAmount) / prediction.predictedAmount) - 1) * 100).toFixed(0)}%`
                                           : "Stable"}
                                       </span>
@@ -429,11 +429,11 @@ export default function AiInsightsPage() {
                                     <div className="w-full bg-neutral-200 rounded-full h-2">
                                       <div 
                                         className="bg-primary h-2 rounded-full" 
-                                        style={{ width: `${prediction.confidence * 100}%` }}
+                                        style={{ width: `${prediction.confidence ? prediction.confidence * 100 : 0}%` }}
                                       ></div>
                                     </div>
                                     <div className="text-xs text-neutral-500 mt-1">
-                                      {(prediction.confidence * 100).toFixed(0)}% confident
+                                      {(prediction.confidence ? (prediction.confidence * 100).toFixed(0) : '0')}% confident
                                     </div>
                                   </td>
                                 </tr>
@@ -486,7 +486,7 @@ export default function AiInsightsPage() {
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
                             <DollarSign className="h-5 w-5 text-green-500" />
-                            Potential Savings: ${suggestion.estimatedSaving.toFixed(2)}/month
+                            Potential Savings: ${suggestion.estimatedSaving?.toFixed(2) || '0.00'}/month
                           </CardTitle>
                           <CardDescription className="flex items-center gap-1">
                             {getDifficultyIcon(suggestion.difficulty)}
