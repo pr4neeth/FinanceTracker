@@ -191,7 +191,9 @@ export default function BillsPage() {
     // If categoryId is an empty string, convert to undefined
     const processedData = {
       ...data,
-      categoryId: data.categoryId && data.categoryId !== "none" ? parseInt(data.categoryId) : undefined
+      categoryId: data.categoryId && data.categoryId !== "none" ? data.categoryId : undefined,
+      // Map frequency to recurringPeriod for MongoDB schema compatibility
+      recurringPeriod: data.frequency
     };
 
     if (selectedBill) {
@@ -207,7 +209,8 @@ export default function BillsPage() {
       name: bill.name,
       amount: bill.amount.toString(),
       dueDate: new Date(bill.dueDate),
-      frequency: bill.frequency,
+      // Use recurringPeriod as frequency for form display
+      frequency: bill.recurringPeriod || bill.frequency,
       categoryId: bill.categoryId ? bill.categoryId.toString() : "none",
       isPaid: bill.isPaid,
       autoPayEnabled: bill.autoPayEnabled,
@@ -410,7 +413,7 @@ export default function BillsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-neutral-500">
-                              {bill.frequency.charAt(0).toUpperCase() + bill.frequency.slice(1)}
+                              {(bill.recurringPeriod || bill.frequency)?.charAt(0).toUpperCase() + (bill.recurringPeriod || bill.frequency)?.slice(1)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
