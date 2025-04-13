@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trash, CreditCard, DollarSign, PiggyBank, Bank, Building } from 'lucide-react';
+import { Loader2, RefreshCw, Trash, CreditCard, DollarSign, PiggyBank, Building } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -105,7 +105,7 @@ export const LinkedAccountsList: React.FC<LinkedAccountsListProps> = ({
   const getAccountIcon = (type: string, subtype?: string) => {
     switch (type.toLowerCase()) {
       case 'depository':
-        return subtype?.toLowerCase() === 'checking' ? <Bank className="h-5 w-5" /> : <PiggyBank className="h-5 w-5" />;
+        return subtype?.toLowerCase() === 'checking' ? <Building className="h-5 w-5" /> : <PiggyBank className="h-5 w-5" />;
       case 'credit':
         return <CreditCard className="h-5 w-5" />;
       case 'loan':
@@ -113,7 +113,7 @@ export const LinkedAccountsList: React.FC<LinkedAccountsListProps> = ({
       case 'investment':
         return <DollarSign className="h-5 w-5" />;
       default:
-        return <Bank className="h-5 w-5" />;
+        return <Building className="h-5 w-5" />;
     }
   };
 
