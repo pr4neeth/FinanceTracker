@@ -35,9 +35,9 @@ export default function RecentTransactions({ transactions, isLoading, className 
   });
 
   // Get category name by ID
-  const getCategoryName = (categoryId: number | null) => {
+  const getCategoryName = (categoryId: string | null) => {
     if (!categoryId || !categories) return "Uncategorized";
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c: any) => c._id === categoryId);
     return category ? category.name : "Uncategorized";
   };
 
@@ -64,7 +64,7 @@ export default function RecentTransactions({ transactions, isLoading, className 
   };
 
   // Get category badge color
-  const getCategoryBadgeColor = (categoryId: number | null) => {
+  const getCategoryBadgeColor = (categoryId: string | null) => {
     if (!categoryId) return "bg-gray-100 text-gray-800";
     
     const categoryName = getCategoryName(categoryId).toLowerCase();
@@ -128,7 +128,7 @@ export default function RecentTransactions({ transactions, isLoading, className 
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
                   {transactions.map(transaction => (
-                    <tr key={transaction.id} className="hover:bg-neutral-50">
+                    <tr key={transaction._id} className="hover:bg-neutral-50">
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-8 w-8 flex-shrink-0 bg-neutral-100 rounded-full flex items-center justify-center mr-3 text-neutral-500">

@@ -462,6 +462,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Budget spending endpoint
+  app.get("/api/budgets/spending", async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
+      const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
+      
+      // Calculate spending per category
+      const categorySpending = new Map<string, number>();
+      
+      for (const transaction of transactions) {
+        if (transaction.categoryId && !transaction.isIncome) {
+          const categoryId = transaction.categoryId.toString();
+          const currentAmount = categorySpending.get(categoryId) || 0;
+          categorySpending.set(categoryId, currentAmount + transaction.amount);
+        }
+      }
+      
+      // Format the result
+      const result = Array.from(categorySpending.entries()).map(([categoryId, spent]) => ({
+        categoryId,
+        spent
+      }));
+      
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Budget alerts endpoint
+  app.get("/api/budgets/alerts", async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
+      const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
+      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      
+      // Map for quick category lookups
+      const categoryMap = new Map(categories.map(c => [c._id.toString(), c.name]));
+      
+      // Calculate spending per category
+      const categorySpending = new Map<string, number>();
+      
+      for (const transaction of transactions) {
+        if (transaction.categoryId && !transaction.isIncome) {
+          const categoryId = transaction.categoryId.toString();
+          const currentAmount = categorySpending.get(categoryId) || 0;
+          categorySpending.set(categoryId, currentAmount + transaction.amount);
+        }
+      }
+      
+      // Check each budget for alerts
+      const alerts = [];
+      
+      for (const budget of budgets) {
+        const categoryId = budget.categoryId.toString();
+        const spent = categorySpending.get(categoryId) || 0;
+        const percentSpent = Math.round((spent / budget.amount) * 100);
+        
+        // Check if we should alert based on threshold or exceeding
+        const isExceeded = spent > budget.amount;
+        const isApproaching = percentSpent >= budget.alertThreshold && !isExceeded;
+        
+        if (isExceeded || isApproaching) {
+          alerts.push({
+            categoryId,
+            categoryName: categoryMap.get(categoryId) || `Category ${categoryId}`,
+            amount: budget.amount,
+            spent,
+            percentSpent,
+            isExceeded
+          });
+        }
+      }
+      
+      res.json(alerts);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Individual budget routes with :id parameter
   app.get("/api/budgets/:id", async (req, res, next) => {
     try {
       const budget = await storage.getBudgetById(req.params.id);
@@ -531,93 +620,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ message: "Failed to delete budget" });
       }
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Budget spending and alerts
-  app.get("/api/budgets/spending", async (req, res, next) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
-      const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
-      
-      // Calculate spending per category
-      const categorySpending = new Map<string, number>();
-      
-      for (const transaction of transactions) {
-        if (transaction.categoryId && !transaction.isIncome) {
-          const categoryId = transaction.categoryId.toString();
-          const currentAmount = categorySpending.get(categoryId) || 0;
-          categorySpending.set(categoryId, currentAmount + transaction.amount);
-        }
-      }
-      
-      // Format the result
-      const result = Array.from(categorySpending.entries()).map(([categoryId, spent]) => ({
-        categoryId,
-        spent
-      }));
-      
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.get("/api/budgets/alerts", async (req, res, next) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
-      const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
-      
-      // Map for quick category lookups
-      const categoryMap = new Map(categories.map(c => [c._id.toString(), c.name]));
-      
-      // Calculate spending per category
-      const categorySpending = new Map<string, number>();
-      
-      for (const transaction of transactions) {
-        if (transaction.categoryId && !transaction.isIncome) {
-          const categoryId = transaction.categoryId.toString();
-          const currentAmount = categorySpending.get(categoryId) || 0;
-          categorySpending.set(categoryId, currentAmount + transaction.amount);
-        }
-      }
-      
-      // Check each budget for alerts
-      const alerts = [];
-      
-      for (const budget of budgets) {
-        const categoryId = budget.categoryId.toString();
-        const spent = categorySpending.get(categoryId) || 0;
-        const percentSpent = Math.round((spent / budget.amount) * 100);
-        
-        // Check if we should alert based on threshold or exceeding
-        const isExceeded = spent > budget.amount;
-        const isApproaching = percentSpent >= budget.alertThreshold && !isExceeded;
-        
-        if (isExceeded || isApproaching) {
-          alerts.push({
-            categoryId,
-            categoryName: categoryMap.get(categoryId) || `Category ${categoryId}`,
-            amount: budget.amount,
-            spent,
-            percentSpent,
-            isExceeded
-          });
-        }
-      }
-      
-      res.json(alerts);
     } catch (error) {
       next(error);
     }
