@@ -16,6 +16,7 @@ import {
   categorizeTransaction,
 } from "./openai";
 import {
+  plaidClient,
   createLinkToken,
   exchangePublicToken,
   getAccounts,

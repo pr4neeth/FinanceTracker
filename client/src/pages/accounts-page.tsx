@@ -304,9 +304,33 @@ export default function AccountsPage() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Your Accounts</CardTitle>
+                    <CardTitle>Bank Connections</CardTitle>
                     <CardDescription>
-                      View and manage all your financial accounts
+                      Connect your bank accounts via Plaid
+                    </CardDescription>
+                  </div>
+                  <PlaidLinkComponent
+                    onSuccess={() => {
+                      toast({
+                        title: "Bank account connected",
+                        description: "Your bank account has been successfully connected.",
+                      });
+                    }}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <LinkedAccountsList />
+              </CardContent>
+            </Card>
+
+            <Card className="mb-8">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Manual Accounts</CardTitle>
+                    <CardDescription>
+                      Manually tracked accounts
                     </CardDescription>
                   </div>
                   <Button onClick={openAccountForm} className="gap-2">
