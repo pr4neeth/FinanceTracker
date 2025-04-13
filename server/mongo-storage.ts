@@ -135,6 +135,15 @@ export class MongoStorage implements IStorage {
     }
   }
   
+  async getAllUsers(): Promise<UserDocument[]> {
+    try {
+      return await User.find({});
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      return [];
+    }
+  }
+  
   // Category methods
   async createCategory(category: InsertCategory): Promise<CategoryDocument> {
     try {

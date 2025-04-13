@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 interface BillReminder {
   _id: string;
@@ -32,7 +32,7 @@ interface BillReminder {
 
 const BillReminders = () => {
   const [show, setShow] = useState(true);
-  const [_, setLocation] = useNavigate();
+  const [_, setLocation] = useLocation();
   
   // Fetch upcoming bills (due in the next 14 days)
   const { data: upcomingBills, isLoading } = useQuery({

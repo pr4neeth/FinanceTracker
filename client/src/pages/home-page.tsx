@@ -8,6 +8,7 @@ import MonthlySpending from "@/components/Dashboard/MonthlySpending";
 import BudgetOverview from "@/components/Dashboard/BudgetOverview";
 import AiInsights from "@/components/Dashboard/AiInsights";
 import RecentTransactions from "@/components/Dashboard/RecentTransactions";
+import BillReminders from "@/components/Bills/BillReminders";
 import { useState, useEffect } from "react";
 import ReceiptScannerModal from "@/components/Modals/ReceiptScannerModal";
 import AddTransactionMenu from "@/components/Modals/AddTransactionMenu";
@@ -119,6 +120,8 @@ export default function HomePage() {
               Welcome back, {user?.fullName || user?.username || "User"}! Here's your financial overview.
             </p>
           </div>
+          
+          <BillReminders />
           
           <FinancialSummary 
             data={monthlySummary} 
