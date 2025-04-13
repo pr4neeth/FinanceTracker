@@ -122,7 +122,7 @@ export default function TransactionsPage() {
       
       // Filter by category
       const matchesCategory = categoryFilter === "all" || 
-        transaction.categoryId === parseInt(categoryFilter);
+        transaction.categoryId?.toString() === categoryFilter?.toString();
       
       // Filter by date
       let matchesDate = true;

@@ -146,8 +146,8 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
         const apiData = {
           ...data,
           amount: parseFloat(data.amount as string),
-          categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-          accountId: data.accountId ? parseInt(data.accountId) : null,
+          categoryId: data.categoryId === "none" ? null : data.categoryId,
+          accountId: data.accountId ? data.accountId : null,
           date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
         };
         
@@ -277,8 +277,8 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
       body: JSON.stringify({
         ...data,
         amount: parseFloat(data.amount as string),
-        categoryId: data.categoryId === "none" ? null : parseInt(data.categoryId),
-        accountId: data.accountId ? parseInt(data.accountId) : null,
+        categoryId: data.categoryId === "none" ? null : data.categoryId,
+        accountId: data.accountId ? data.accountId : null,
         date: data.date.toISOString().split('T')[0], // Format date as YYYY-MM-DD
       }),
       credentials: "include"
