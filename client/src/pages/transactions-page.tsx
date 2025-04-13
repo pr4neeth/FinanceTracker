@@ -115,6 +115,19 @@ export default function TransactionsPage() {
   const filterTransactions = () => {
     if (!transactions) return [];
     
+    console.log("Transactions data:", transactions);
+    console.log("Categories data:", categories);
+    
+    if (transactions.length > 0 && categories && categories.length > 0) {
+      const sampleTransaction = transactions[0];
+      console.log("Sample transaction categoryId:", sampleTransaction.categoryId);
+      console.log("Sample transaction categoryId type:", typeof sampleTransaction.categoryId);
+      
+      const sampleCategory = categories[0];
+      console.log("Sample category _id:", sampleCategory._id);
+      console.log("Sample category _id type:", typeof sampleCategory._id);
+    }
+    
     return transactions.filter(transaction => {
       // Filter by search query
       const matchesSearch = searchQuery === "" || 
@@ -248,7 +261,24 @@ export default function TransactionsPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredTransactions.map(transaction => {
-                        const category = categories?.find(c => c._id?.toString() === transaction.categoryId?.toString());
+                        // Debug the comparison for this transaction
+                        console.log("Finding category for transaction:", transaction.description);
+                        console.log("Transaction categoryId:", transaction.categoryId);
+                        
+                        if (transaction.categoryId) {
+                          console.log("Available categories:", categories?.map(c => ({ id: c._id, name: c.name })));
+                        }
+                        
+                        const category = categories?.find(c => {
+                          const categoryIdStr = c._id?.toString();
+                          const transactionCategoryIdStr = transaction.categoryId?.toString();
+                          
+                          console.log(`Comparing category "${c.name}" (${categoryIdStr}) with transaction category ID (${transactionCategoryIdStr})`);
+                          console.log("Match result:", categoryIdStr === transactionCategoryIdStr);
+                          
+                          return categoryIdStr === transactionCategoryIdStr;
+                        });
+                        
                         return (
                           <TableRow key={transaction._id}>
                             <TableCell>

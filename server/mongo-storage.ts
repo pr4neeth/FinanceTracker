@@ -327,11 +327,17 @@ export class MongoStorage implements IStorage {
   
   async getTransactionsByUserId(userId: string, limit: number = 50): Promise<TransactionDocument[]> {
     try {
-      return await Transaction.find({ userId: new Types.ObjectId(userId) })
+      // Remove populate for now to debug the raw categoryId
+      const transactions = await Transaction.find({ userId: new Types.ObjectId(userId) })
         .sort({ date: -1 })
-        .limit(limit)
-        .populate('categoryId')
-        .populate('accountId');
+        .limit(limit);
+        
+      console.log("MongoDB - First transaction categoryId (raw):", 
+        transactions.length > 0 ? 
+          { type: typeof transactions[0].categoryId, value: transactions[0].categoryId } : 
+          'No transactions found');
+      
+      return transactions;
     } catch (error) {
       console.error('Error getting transactions by user ID:', error);
       return [];
