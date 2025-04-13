@@ -394,7 +394,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                     </FormControl>
                     <SelectContent>
                       {accounts?.map(account => (
-                        <SelectItem key={account.id} value={account.id.toString()}>
+                        <SelectItem key={account._id || account.id} value={account._id?.toString() || account.id?.toString()}>
                           {account.name}
                         </SelectItem>
                       ))}
@@ -461,7 +461,7 @@ export default function TransactionFormModal({ isOpen, onClose }: TransactionFor
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
                         {categories?.map(category => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
+                          <SelectItem key={category._id || category.id} value={category._id?.toString() || category.id?.toString()}>
                             {category.name}
                           </SelectItem>
                         ))}
