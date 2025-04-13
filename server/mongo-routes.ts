@@ -1767,6 +1767,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI expense prediction
+  app.get("/api/predict-expenses", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get transactions for the user
+      const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 100);
+      
+      // Get categories
+      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categoryMap = new Map();
+      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      
+      // Group transactions by category
+      const categoryExpenses = new Map();
+      const now = new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      
+      transactions.forEach(transaction => {
+        if (transaction.isIncome || new Date(transaction.date) < sixMonthsAgo) return;
+        
+        const categoryId = transaction.categoryId ? transaction.categoryId.toString() : 'Uncategorized';
+        const categoryName = categoryId !== 'Uncategorized' ? categoryMap.get(categoryId) || 'Uncategorized' : 'Uncategorized';
+        
+        if (!categoryExpenses.has(categoryName)) {
+          categoryExpenses.set(categoryName, {
+            category: categoryName,
+            amounts: [],
+            months: []
+          });
+        }
+        
+        const month = new Date(transaction.date).toLocaleString('default', { month: 'short' });
+        const monthKey = `${month}-${new Date(transaction.date).getFullYear()}`;
+        
+        // Group by month
+        const categoryData = categoryExpenses.get(categoryName);
+        const monthIndex = categoryData.months.indexOf(monthKey);
+        
+        if (monthIndex === -1) {
+          categoryData.months.push(monthKey);
+          categoryData.amounts.push(transaction.amount);
+        } else {
+          categoryData.amounts[monthIndex] += transaction.amount;
+        }
+      });
+      
+      // Convert map to array
+      const pastExpenses = Array.from(categoryExpenses.values());
+      
+      // If we have enough data, call the OpenAI API
+      if (pastExpenses.length > 0) {
+        const predictions = await predictExpenses(pastExpenses);
+        res.json(predictions);
+      } else {
+        res.json([]);
+      }
+    } catch (error) {
+      console.error("Error predicting expenses:", error);
+      res.status(500).json({ error: "Failed to predict expenses" });
+    }
+  });
+
+  // AI savings suggestions
+  app.get("/api/saving-suggestions", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get transactions for the user
+      const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 50);
+      
+      // Get categories
+      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categoryMap = new Map();
+      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      
+      // Calculate monthly income
+      let monthlyIncome = 0;
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      transactions.forEach(transaction => {
+        if (transaction.isIncome && new Date(transaction.date) >= oneMonthAgo) {
+          monthlyIncome += transaction.amount;
+        }
+      });
+      
+      // Default income if none is recorded
+      if (monthlyIncome === 0) {
+        monthlyIncome = 5000; // Default assumption if no income is recorded
+      }
+      
+      // Format transactions for the AI
+      const formattedTransactions = transactions
+        .filter(t => !t.isIncome)
+        .map(transaction => {
+          const categoryId = transaction.categoryId ? transaction.categoryId.toString() : 'Uncategorized';
+          const categoryName = categoryId !== 'Uncategorized' ? categoryMap.get(categoryId) || 'Uncategorized' : 'Uncategorized';
+          
+          return {
+            description: transaction.description,
+            amount: transaction.amount,
+            category: categoryName,
+            date: new Date(transaction.date).toISOString().split('T')[0]
+          };
+        });
+      
+      // If we have enough data, call the OpenAI API
+      if (formattedTransactions.length > 0) {
+        const suggestions = await suggestSavings(formattedTransactions, monthlyIncome);
+        res.json(suggestions);
+      } else {
+        res.json([]);
+      }
+    } catch (error) {
+      console.error("Error generating savings suggestions:", error);
+      res.status(500).json({ error: "Failed to generate savings suggestions" });
+    }
+  });
+  
+  // Financial advice based on goals and spending patterns
+  app.post("/api/financial-advice", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { topic, question } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ error: "Missing topic for financial advice" });
+      }
+      
+      // Get user's financial data
+      const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 100);
+      const goals = await storage.getGoalsByUserId(req.user._id.toString());
+      
+      // Get categories
+      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categoryMap = new Map();
+      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      
+      // Calculate income, expenses by category, and total savings
+      let income = 0;
+      let expenses = {};
+      let totalExpenses = 0;
+      
+      transactions.forEach(transaction => {
+        if (transaction.isIncome) {
+          income += transaction.amount;
+        } else {
+          totalExpenses += transaction.amount;
+          
+          const categoryId = transaction.categoryId ? transaction.categoryId.toString() : 'Uncategorized';
+          const categoryName = categoryId !== 'Uncategorized' ? categoryMap.get(categoryId) || 'Uncategorized' : 'Uncategorized';
+          
+          if (!expenses[categoryName]) {
+            expenses[categoryName] = 0;
+          }
+          expenses[categoryName] += transaction.amount;
+        }
+      });
+      
+      const savings = income - totalExpenses;
+      
+      // Format goals
+      const formattedGoals = goals.map(goal => ({
+        name: goal.name,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.currentAmount
+      }));
+      
+      // Generate advice
+      const advice = await generateFinancialAdvice(topic, question, {
+        income,
+        expenses,
+        savings,
+        goals: formattedGoals
+      });
+      
+      res.json({ advice });
+    } catch (error) {
+      console.error("Error generating financial advice:", error);
+      res.status(500).json({ error: "Failed to generate financial advice" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
 
