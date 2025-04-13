@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   email: string;
   fullName: string;
+  plaidItems?: mongoose.Types.ObjectId[];  // Reference to PlaidItems associated with the user
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,16 @@ export interface ICategory extends Document {
   updatedAt: Date;
 }
 
+export interface IPlaidItem extends Document {
+  userId: mongoose.Types.ObjectId;
+  accessToken: string;
+  itemId: string;
+  institutionId: string;
+  institutionName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IAccount extends Document {
   name: string;
   type: string;
@@ -26,6 +37,12 @@ export interface IAccount extends Document {
   currency: string;
   userId: mongoose.Types.ObjectId;
   description: string;
+  plaidAccountId?: string;
+  plaidItemId?: mongoose.Types.ObjectId;
+  officialName?: string;
+  mask?: string;
+  subtype?: string;
+  isPlaidConnected: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,7 +117,8 @@ const UserSchema = new Schema<IUser>(
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     email: { type: String, required: true },
-    fullName: { type: String, required: true }
+    fullName: { type: String, required: true },
+    plaidItems: [{ type: Schema.Types.ObjectId, ref: 'PlaidItem' }]
   },
   { timestamps: true }
 );
@@ -115,6 +133,17 @@ const CategorySchema = new Schema<ICategory>(
   { timestamps: true }
 );
 
+const PlaidItemSchema = new Schema<IPlaidItem>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    accessToken: { type: String, required: true },
+    itemId: { type: String, required: true },
+    institutionId: { type: String, required: true },
+    institutionName: { type: String, required: true }
+  },
+  { timestamps: true }
+);
+
 const AccountSchema = new Schema<IAccount>(
   {
     name: { type: String, required: true },
@@ -122,7 +151,14 @@ const AccountSchema = new Schema<IAccount>(
     balance: { type: Number, default: 0 },
     currency: { type: String, default: 'USD' },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    description: { type: String, default: '' }
+    description: { type: String, default: '' },
+    // Plaid-related fields
+    plaidAccountId: { type: String },
+    plaidItemId: { type: Schema.Types.ObjectId, ref: 'PlaidItem' },
+    officialName: { type: String },
+    mask: { type: String },
+    subtype: { type: String },
+    isPlaidConnected: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
