@@ -1179,6 +1179,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get transactions for a specific Plaid account
+  app.get('/api/plaid/accounts/:accountId/transactions', requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { accountId } = req.params;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: "Account ID is required" });
+      }
+      
+      // Get the account
+      const account = await storage.getAccountById(accountId);
+      
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      
+      // Verify account belongs to user
+      if (account.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      if (!account.isPlaidConnected || !account.plaidItemId) {
+        return res.status(400).json({ error: "Account is not connected to Plaid" });
+      }
+      
+      // Get the Plaid item
+      const plaidItem = await storage.getPlaidItemById(account.plaidItemId.toString());
+      
+      if (!plaidItem) {
+        return res.status(404).json({ error: "Plaid item not found" });
+      }
+      
+      // Get transactions for the last 30 days
+      const endDate = new Date().toISOString().slice(0, 10);
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      
+      const transactions = await getTransactions(
+        plaidItem.accessToken,
+        startDate,
+        endDate
+      );
+      
+      // Filter transactions for this account only
+      const accountTransactions = transactions.filter(t => t.account_id === account.plaidAccountId);
+      
+      res.json(accountTransactions);
+    } catch (error) {
+      console.error("Error getting account transactions:", error);
+      res.status(500).json({ 
+        error: "Failed to get account transactions", 
+        message: error.message 
+      });
+    }
+  });
+
   app.post("/api/plaid/sync-transactions", requireAuth, async (req, res, next) => {
     try {
       const { plaidItemId } = req.body;

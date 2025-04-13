@@ -46,6 +46,7 @@ import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
 import PlaidLinkComponent from "@/components/PlaidLinkComponent";
 import LinkedAccountsList from "@/components/LinkedAccountsList";
+import PlaidTransactions from "@/components/PlaidTransactions";
 
 // Account form schema
 const accountFormSchema = z.object({
