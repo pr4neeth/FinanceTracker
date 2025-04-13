@@ -88,9 +88,9 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
       setIsUploading(true);
       
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('receiptImage', file);
       
-      const response = await fetch('/api/scan-receipt', {
+      const response = await fetch('/api/ai/analyze-receipt', {
         method: 'POST',
         body: formData,
         credentials: 'include'
