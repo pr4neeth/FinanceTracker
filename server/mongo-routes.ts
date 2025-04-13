@@ -524,6 +524,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const alerts = [];
       
       for (const budget of budgets) {
+        // Skip budgets with no categoryId
+        if (!budget.categoryId) continue;
+        
         const categoryId = budget.categoryId.toString();
         const spent = categorySpending.get(categoryId) || 0;
         const percentSpent = Math.round((spent / budget.amount) * 100);

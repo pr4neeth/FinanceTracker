@@ -59,12 +59,23 @@ export default function MonthlySpending({ className, year, month }: MonthlySpend
       // Filter data based on selected time range
       let filteredData = transformedData;
       
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+      
       if (timeRange === "30days") {
-        // Last 6 months for demo purposes
-        filteredData = transformedData.slice(-6);
+        // Get the data for the current month and previous month
+        filteredData = transformedData.filter(item => {
+          const monthIndex = transformedData.findIndex(m => m.name === item.name);
+          const month = monthIndex + 1;
+          return month >= (currentMonth - 1) || month <= currentMonth;
+        });
       } else if (timeRange === "90days") {
-        // Last 9 months for demo purposes
-        filteredData = transformedData.slice(-9);
+        // Get the last 3 months of data
+        filteredData = transformedData.filter(item => {
+          const monthIndex = transformedData.findIndex(m => m.name === item.name);
+          const month = monthIndex + 1;
+          return month >= (currentMonth - 2) || month <= currentMonth;
+        });
       }
       
       setChartData(filteredData);
