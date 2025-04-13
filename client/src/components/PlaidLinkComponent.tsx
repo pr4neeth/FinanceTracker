@@ -98,7 +98,7 @@ const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
         try {
           const plaidHandler = (window as any).Plaid.create({
             token,
-            env: process.env.PLAID_ENV || 'sandbox',
+            env: 'sandbox', // Use sandbox mode for testing
             product: ['transactions'],
             language: 'en',
           });
