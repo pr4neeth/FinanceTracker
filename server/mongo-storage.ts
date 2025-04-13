@@ -3,10 +3,10 @@ import { connection } from './mongodb';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import {
-  User, Category, Account, Transaction, Budget, Bill, FinancialGoal, AiInsight,
-  UserDocument, CategoryDocument, AccountDocument, TransactionDocument, 
+  User, Category, PlaidItem, Account, Transaction, Budget, Bill, FinancialGoal, AiInsight,
+  UserDocument, CategoryDocument, PlaidItemDocument, AccountDocument, TransactionDocument, 
   BudgetDocument, BillDocument, FinancialGoalDocument, AiInsightDocument,
-  InsertUser, InsertCategory, InsertAccount, InsertTransaction,
+  InsertUser, InsertCategory, InsertPlaidItem, InsertAccount, InsertTransaction,
   InsertBudget, InsertBill, InsertGoal, InsertAiInsight
 } from './models';
 
@@ -24,10 +24,19 @@ export interface IStorage {
   updateCategory(id: string, data: Partial<InsertCategory>): Promise<CategoryDocument | null>;
   deleteCategory(id: string): Promise<boolean>;
   
+  // Plaid methods
+  createPlaidItem(plaidItem: InsertPlaidItem): Promise<PlaidItemDocument>;
+  getPlaidItemsByUserId(userId: string): Promise<PlaidItemDocument[]>;
+  getPlaidItemById(id: string): Promise<PlaidItemDocument | null>;
+  getPlaidItemByItemId(itemId: string): Promise<PlaidItemDocument | null>;
+  deletePlaidItem(id: string): Promise<boolean>;
+  
   // Account methods
   createAccount(account: InsertAccount): Promise<AccountDocument>;
   getAccountsByUserId(userId: string): Promise<AccountDocument[]>;
+  getAccountsByPlaidItemId(plaidItemId: string): Promise<AccountDocument[]>;
   getAccountById(id: string): Promise<AccountDocument | null>;
+  getAccountByPlaidAccountId(plaidAccountId: string): Promise<AccountDocument | null>;
   updateAccount(id: string, data: Partial<InsertAccount>): Promise<AccountDocument | null>;
   deleteAccount(id: string): Promise<boolean>;
   

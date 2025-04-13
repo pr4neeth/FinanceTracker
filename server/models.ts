@@ -235,6 +235,7 @@ const AiInsightSchema = new Schema<IAiInsight>(
 // Create models
 export const User = mongoose.model<IUser>('User', UserSchema);
 export const Category = mongoose.model<ICategory>('Category', CategorySchema);
+export const PlaidItem = mongoose.model<IPlaidItem>('PlaidItem', PlaidItemSchema);
 export const Account = mongoose.model<IAccount>('Account', AccountSchema);
 export const Transaction = mongoose.model<ITransaction>('Transaction', TransactionSchema);
 export const Budget = mongoose.model<IBudget>('Budget', BudgetSchema);
@@ -245,6 +246,7 @@ export const AiInsight = mongoose.model<IAiInsight>('AiInsight', AiInsightSchema
 // Export types for inserted and selected documents
 export type UserDocument = IUser;
 export type CategoryDocument = ICategory;
+export type PlaidItemDocument = IPlaidItem;
 export type AccountDocument = IAccount;
 export type TransactionDocument = ITransaction;
 export type BudgetDocument = IBudget;
@@ -255,6 +257,7 @@ export type AiInsightDocument = IAiInsight;
 // Export types for creating new documents
 export type InsertUser = Omit<IUser, '_id' | 'createdAt' | 'updatedAt'>;
 export type InsertCategory = Omit<ICategory, '_id' | 'createdAt' | 'updatedAt'>;
+export type InsertPlaidItem = Omit<IPlaidItem, '_id' | 'createdAt' | 'updatedAt'>;
 export type InsertAccount = Omit<IAccount, '_id' | 'createdAt' | 'updatedAt'>;
 export type InsertTransaction = Omit<ITransaction, '_id' | 'createdAt' | 'updatedAt'>;
 export type InsertBudget = Omit<IBudget, '_id' | 'createdAt' | 'updatedAt'>;
