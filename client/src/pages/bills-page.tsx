@@ -176,7 +176,7 @@ export default function BillsPage() {
   // Mark bill as paid mutation
   const markAsPaidMutation = useMutation({
     mutationFn: async (bill) => {
-      return await apiRequest("PUT", `/api/bills/${bill.id}`, { 
+      return await apiRequest("PUT", `/api/bills/${bill._id}`, { 
         ...bill, 
         isPaid: true 
       });
@@ -232,8 +232,8 @@ export default function BillsPage() {
   };
 
   const getCategoryName = (categoryId) => {
-    if (!categories) return null;
-    const category = categories.find(c => c.id === categoryId);
+    if (!categories || !categoryId) return null;
+    const category = categories.find(c => c._id === categoryId);
     return category ? category.name : null;
   };
 
@@ -297,7 +297,7 @@ export default function BillsPage() {
               <CardContent>
                 <div className="space-y-2">
                   {upcomingBills.map(bill => (
-                    <div key={bill.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                    <div key={bill._id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-10 rounded-full ${
                           isOverdue(bill.dueDate) ? "bg-red-500" : 
@@ -380,7 +380,7 @@ export default function BillsPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-neutral-200">
                       {filteredBills.map(bill => (
-                        <tr key={bill.id} className="hover:bg-neutral-50">
+                        <tr key={bill._id} className="hover:bg-neutral-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500">
@@ -639,7 +639,7 @@ export default function BillsPage() {
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
                         {categories?.map(category => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
+                          <SelectItem key={category._id} value={category._id?.toString() || 'none'}>
                             {category.name}
                           </SelectItem>
                         ))}
