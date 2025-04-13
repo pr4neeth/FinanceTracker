@@ -148,7 +148,7 @@ export default function BudgetsPage() {
     // Process data to handle "none" value for categoryId
     const processedData = {
       ...data,
-      categoryId: data.categoryId && data.categoryId !== "none" ? parseInt(data.categoryId) : undefined
+      categoryId: data.categoryId && data.categoryId !== "none" ? data.categoryId : undefined
     };
     
     if (selectedBudget) {
@@ -161,7 +161,7 @@ export default function BudgetsPage() {
   const editBudget = (budget) => {
     setSelectedBudget(budget);
     form.reset({
-      categoryId: budget.categoryId.toString(),
+      categoryId: budget.categoryId ? budget.categoryId.toString() : "none",
       amount: budget.amount.toString(),
       period: budget.period,
       startDate: new Date(budget.startDate),
