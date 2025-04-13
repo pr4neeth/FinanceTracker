@@ -248,6 +248,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), limit);
+      
+      // Debug data structure
+      console.log("Transactions data (first item):", transactions.length > 0 ? JSON.stringify(transactions[0], null, 2) : "No transactions");
+      
+      if (transactions.length > 0) {
+        const sampleTransaction = transactions[0];
+        console.log("Sample transaction categoryId type:", typeof sampleTransaction.categoryId);
+        console.log("Sample transaction categoryId value:", sampleTransaction.categoryId);
+        
+        if (sampleTransaction.categoryId && typeof sampleTransaction.categoryId === 'object') {
+          console.log("Sample transaction categoryId is an object with properties:", 
+            Object.keys(sampleTransaction.categoryId));
+        }
+      }
+      
       res.json(transactions);
     } catch (error) {
       next(error);
