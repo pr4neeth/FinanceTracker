@@ -20,6 +20,78 @@ const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper function to load the Plaid Link script
+  const loadPlaidLink = (token: string): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+      script.async = true;
+      
+      script.onload = () => {
+        try {
+          // Create the handler with all required callbacks
+          const handler = (window as any).Plaid.create({
+            token,
+            env: 'sandbox',
+            product: ['transactions'],
+            language: 'en',
+            onSuccess: async (public_token: string, metadata: any) => {
+              try {
+                // Step 4: Send public token to the server to exchange it for an access token
+                const exchangeResponse = await apiRequest('POST', '/api/plaid/set-access-token', {
+                  publicToken: public_token,
+                  institutionId: metadata.institution?.institution_id || '',
+                  institutionName: metadata.institution?.name || 'Unknown Institution',
+                });
+
+                const data = await exchangeResponse.json();
+
+                // Step 5: Notify about success
+                toast({
+                  title: 'Account connected!',
+                  description: 'Your bank account has been successfully linked.',
+                });
+
+                if (onSuccess) {
+                  onSuccess(data);
+                }
+                
+                setIsLoading(false);
+              } catch (error) {
+                console.error('Error exchanging public token:', error);
+                toast({
+                  title: 'Connection failed',
+                  description: 'There was an error connecting your bank account. Please try again.',
+                  variant: 'destructive',
+                });
+                setIsLoading(false);
+              }
+            },
+            onExit: () => {
+              setIsLoading(false);
+            },
+            onLoad: () => {
+              // Optional callback when the Link instance has finished loading
+            },
+            onEvent: (eventName: string) => {
+              // Optional callback for Link flow events
+              console.log('Plaid event:', eventName);
+            }
+          });
+          resolve(handler);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      script.onerror = (error) => {
+        reject(error);
+      };
+      
+      document.body.appendChild(script);
+    });
+  };
+  
   const openPlaidLink = useCallback(async () => {
     setIsLoading(true);
 
@@ -32,44 +104,10 @@ const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
         throw new Error('Failed to get link token');
       }
 
-      // Step 2: Load Plaid Link
-      const { open } = await loadPlaidLink(link_token);
-
-      // Step 3: Open Plaid Link
-      open({
-        onSuccess: async (public_token: string, metadata: any) => {
-          try {
-            // Step 4: Send public token to the server to exchange it for an access token
-            const exchangeResponse = await apiRequest('POST', '/api/plaid/set-access-token', {
-              publicToken: public_token,
-              institutionId: metadata.institution?.institution_id || '',
-              institutionName: metadata.institution?.name || 'Unknown Institution',
-            });
-
-            const data = await exchangeResponse.json();
-
-            // Step 5: Notify about success
-            toast({
-              title: 'Account connected!',
-              description: 'Your bank account has been successfully linked.',
-            });
-
-            if (onSuccess) {
-              onSuccess(data);
-            }
-          } catch (error) {
-            console.error('Error exchanging public token:', error);
-            toast({
-              title: 'Connection failed',
-              description: 'There was an error connecting your bank account. Please try again.',
-              variant: 'destructive',
-            });
-          }
-        },
-        onExit: () => {
-          setIsLoading(false);
-        },
-      });
+      // Step 2: Load Plaid Link and open it
+      const handler = await loadPlaidLink(link_token);
+      handler.open();
+      
     } catch (error) {
       console.error('Error loading Plaid Link:', error);
       toast({
@@ -80,39 +118,6 @@ const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
       setIsLoading(false);
     }
   }, [onSuccess, toast]);
-
-  // Helper function to load the Plaid Link script
-  const loadPlaidLink = (token: string) => {
-    return new Promise<any>((resolve, reject) => {
-      // Check if Plaid is already loaded
-      if ((window as any).Plaid) {
-        resolve((window as any).Plaid);
-        return;
-      }
-
-      // Load Plaid Link script
-      const script = document.createElement('script');
-      script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-      script.async = true;
-      script.onload = () => {
-        try {
-          const plaidHandler = (window as any).Plaid.create({
-            token,
-            env: 'sandbox', // Use sandbox mode for testing
-            product: ['transactions'],
-            language: 'en',
-          });
-          resolve(plaidHandler);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      script.onerror = (error) => {
-        reject(error);
-      };
-      document.body.appendChild(script);
-    });
-  };
 
   return (
     <Button
