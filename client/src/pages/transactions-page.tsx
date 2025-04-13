@@ -193,7 +193,7 @@ export default function TransactionsPage() {
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
                       {categories?.map(category => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
+                        <SelectItem key={category._id} value={category._id?.toString()}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -248,9 +248,9 @@ export default function TransactionsPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredTransactions.map(transaction => {
-                        const category = categories?.find(c => c.id === transaction.categoryId);
+                        const category = categories?.find(c => c._id?.toString() === transaction.categoryId?.toString());
                         return (
-                          <TableRow key={transaction.id}>
+                          <TableRow key={transaction._id}>
                             <TableCell>
                               <div className="flex items-center">
                                 <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center mr-3 text-neutral-500">
