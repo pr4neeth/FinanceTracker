@@ -60,22 +60,36 @@ export default function MonthlySpending({ className, year, month }: MonthlySpend
       let filteredData = transformedData;
       
       const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+      const currentMonth = currentDate.getMonth(); // JavaScript months are 0-indexed (0-11)
+      
+      // Create mapping between month name and its data
+      const monthDataMap = new Map();
+      transformedData.forEach(item => {
+        monthDataMap.set(item.name.toLowerCase(), item);
+      });
       
       if (timeRange === "30days") {
-        // Get the data for the current month and previous month
-        filteredData = transformedData.filter(item => {
-          const monthIndex = transformedData.findIndex(m => m.name === item.name);
-          const month = monthIndex + 1;
-          return month >= (currentMonth - 1) || month <= currentMonth;
-        });
+        // Get the current month and previous month (up to 2 months total)
+        const months = [];
+        for (let i = 0; i < 2; i++) {
+          const monthDate = new Date(currentDate.getFullYear(), currentMonth - i, 1);
+          const monthName = monthDate.toLocaleString('default', { month: 'short' }).toLowerCase();
+          if (monthDataMap.has(monthName)) {
+            months.push(monthDataMap.get(monthName));
+          }
+        }
+        filteredData = months;
       } else if (timeRange === "90days") {
-        // Get the last 3 months of data
-        filteredData = transformedData.filter(item => {
-          const monthIndex = transformedData.findIndex(m => m.name === item.name);
-          const month = monthIndex + 1;
-          return month >= (currentMonth - 2) || month <= currentMonth;
-        });
+        // Get the current month and previous 2 months (up to 3 months total)
+        const months = [];
+        for (let i = 0; i < 3; i++) {
+          const monthDate = new Date(currentDate.getFullYear(), currentMonth - i, 1);
+          const monthName = monthDate.toLocaleString('default', { month: 'short' }).toLowerCase();
+          if (monthDataMap.has(monthName)) {
+            months.push(monthDataMap.get(monthName));
+          }
+        }
+        filteredData = months;
       }
       
       setChartData(filteredData);
