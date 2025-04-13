@@ -210,7 +210,7 @@ export default function BudgetsPage() {
 
   const getCategoryName = (categoryId) => {
     if (!categories) return "Loading...";
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find(c => c._id === categoryId);
     return category ? category.name : "Unknown";
   };
 
