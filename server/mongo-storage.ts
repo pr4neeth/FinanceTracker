@@ -19,6 +19,7 @@ export interface IStorage {
   // Category methods
   createCategory(category: InsertCategory): Promise<CategoryDocument>;
   getCategoriesByUserId(userId: string): Promise<CategoryDocument[]>;
+  getAllCategories(): Promise<CategoryDocument[]>;
   getCategoryById(id: string): Promise<CategoryDocument | null>;
   updateCategory(id: string, data: Partial<InsertCategory>): Promise<CategoryDocument | null>;
   deleteCategory(id: string): Promise<boolean>;
@@ -140,6 +141,15 @@ export class MongoStorage implements IStorage {
       return await Category.find({ userId: new Types.ObjectId(userId) });
     } catch (error) {
       console.error('Error getting categories by user ID:', error);
+      return [];
+    }
+  }
+  
+  async getAllCategories(): Promise<CategoryDocument[]> {
+    try {
+      return await Category.find({});
+    } catch (error) {
+      console.error('Error getting all categories:', error);
       return [];
     }
   }

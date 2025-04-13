@@ -77,10 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Categories routes
   app.get("/api/categories", async (req, res, next) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = await storage.getAllCategories();
       res.json(categories);
     } catch (error) {
       next(error);

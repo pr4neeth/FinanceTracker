@@ -10,8 +10,11 @@ import TransactionsPage from "@/pages/transactions-page";
 import BudgetsPage from "@/pages/budgets-page";
 import BillsPage from "@/pages/bills-page";
 import AiInsightsPage from "@/pages/ai-insights-page";
-import { AuthProvider, useAuth } from "./hooks/use-simple-auth";
-import { BudgetAlertsProvider, useBudgetAlerts } from "./hooks/use-budget-alerts";
+import { AuthProvider, useAuth } from "@/hooks/use-simple-auth";
+import {
+  BudgetAlertsProvider,
+  useBudgetAlerts,
+} from "./hooks/use-budget-alerts";
 import { BudgetAlertContainer } from "./components/UI/BudgetAlertBanner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -22,9 +25,7 @@ function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BudgetAlertsProvider>
-          {children}
-        </BudgetAlertsProvider>
+        <BudgetAlertsProvider>{children}</BudgetAlertsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
@@ -34,14 +35,14 @@ function Providers({ children }: { children: React.ReactNode }) {
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  
+
   // Use React's useEffect to handle navigation to avoid direct DOM manipulation
   React.useEffect(() => {
     if (!isLoading && !user) {
       navigate("/auth");
     }
   }, [user, isLoading, navigate]);
-  
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -49,11 +50,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!user) {
     return null;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -61,14 +62,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AuthRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  
+
   // Use React's useEffect to handle navigation to avoid direct DOM manipulation
   React.useEffect(() => {
     if (!isLoading && user) {
       navigate("/");
     }
   }, [user, isLoading, navigate]);
-  
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -76,11 +77,11 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (user) {
     return null;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -96,7 +97,7 @@ function App() {
 // App content wrapped by providers
 function AppContent() {
   const { alerts, dismissAlert } = useBudgetAlerts();
-  
+
   return (
     <>
       <Switch>
@@ -105,45 +106,45 @@ function AppContent() {
             <SimpleAuthPage />
           </AuthRoute>
         </Route>
-        
+
         <Route path="/">
           <ProtectedRoute>
             <HomePage />
           </ProtectedRoute>
         </Route>
-        
+
         <Route path="/transactions">
           <ProtectedRoute>
             <TransactionsPage />
           </ProtectedRoute>
         </Route>
-        
+
         <Route path="/budgets">
           <ProtectedRoute>
             <BudgetsPage />
           </ProtectedRoute>
         </Route>
-        
+
         <Route path="/bills">
           <ProtectedRoute>
             <BillsPage />
           </ProtectedRoute>
         </Route>
-        
+
         <Route path="/insights">
           <ProtectedRoute>
             <AiInsightsPage />
           </ProtectedRoute>
         </Route>
-        
+
         <Route>
           <NotFound />
         </Route>
       </Switch>
-      
+
       {/* Display budget alerts */}
       <BudgetAlertContainer alerts={alerts} onDismiss={dismissAlert} />
-      
+
       <Toaster />
     </>
   );
