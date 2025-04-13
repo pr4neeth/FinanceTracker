@@ -123,8 +123,8 @@ export default function BudgetsPage() {
 
   // Update budget mutation
   const updateBudgetMutation = useMutation({
-    mutationFn: async (data) => {
-      return await apiRequest("PUT", `/api/budgets/${selectedBudget._id}`, data);
+    mutationFn: async ({ id, data }) => {
+      return await apiRequest("PUT", `/api/budgets/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
@@ -152,7 +152,10 @@ export default function BudgetsPage() {
     };
     
     if (selectedBudget) {
-      updateBudgetMutation.mutate(processedData);
+      updateBudgetMutation.mutate({
+        id: selectedBudget._id,
+        data: processedData
+      });
     } else {
       createBudgetMutation.mutate(processedData);
     }
@@ -209,8 +212,9 @@ export default function BudgetsPage() {
   };
 
   const getCategoryName = (categoryId) => {
-    if (!categories) return "Loading...";
-    const category = categories.find(c => c._id === categoryId);
+    if (!categories || !categoryId) return "None";
+    // Convert both to strings to ensure correct comparison
+    const category = categories.find(c => c._id.toString() === categoryId.toString());
     return category ? category.name : "Unknown";
   };
 
