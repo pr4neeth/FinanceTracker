@@ -1,15 +1,13 @@
 import { Express, Request, Response, NextFunction } from "express";
-import { Server } from "http";
+import { Server, createServer } from "http";
 import { storage } from "./mongo-storage";
 import { setupAuth, requireAuth } from "./mongo-auth";
 import multer from "multer";
 import { WebSocketServer } from "ws";
 import path from "path";
 import fs from "fs";
-import {
-  checkBudgetAlerts,
-  sendBudgetAlertEmail,
-} from "./budget-alerts";
+import { checkBudgetAlerts } from "./budget-alerts";
+import { sendBudgetAlertEmail } from "./email";
 import {
   analyzeReceipt,
   generateFinancialAdvice,
@@ -97,14 +95,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/categories/:id", async (req, res, next) => {
+  app.get("/api/categories/:id", requireAuth, async (req, res, next) => {
     try {
       const category = await storage.getCategoryById(req.params.id);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      if (!req.user || category.userId.toString() !== req.user._id.toString()) {
+      if (category.userId && category.userId.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: "Forbidden" });
       }
       
@@ -114,14 +112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/categories/:id", async (req, res, next) => {
+  app.patch("/api/categories/:id", requireAuth, async (req, res, next) => {
     try {
       const category = await storage.getCategoryById(req.params.id);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      if (!req.user || category.userId.toString() !== req.user._id.toString()) {
+      if (category.userId && category.userId.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: "Forbidden" });
       }
       
@@ -132,14 +130,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/categories/:id", async (req, res, next) => {
+  app.delete("/api/categories/:id", requireAuth, async (req, res, next) => {
     try {
       const category = await storage.getCategoryById(req.params.id);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      if (!req.user || category.userId.toString() !== req.user._id.toString()) {
+      if (category.userId && category.userId.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: "Forbidden" });
       }
       

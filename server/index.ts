@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./mongo-routes";
 import { setupVite, serveStatic, log } from "./vite";
 import './mongodb'; // Import MongoDB connection
 

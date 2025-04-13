@@ -33,8 +33,8 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       to: params.to,
       from: params.from, // The sender must be the same as the recipient during testing
       subject: params.subject,
-      text: params.text,
-      html: params.html,
+      text: params.text || '',
+      html: params.html || '',
     });
     
     console.log(`Email sent successfully to ${params.to}`);
@@ -61,39 +61,87 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   }
 }
 
+export type BudgetAlertEmailParams = {
+  to: string;
+  userName?: string;
+  categoryName: string;
+  budgetAmount: number;
+  spentAmount: number;
+  threshold?: number;
+  isExceeded: boolean;
+};
+
 export async function sendBudgetAlertEmail(
-  userEmail: string, 
-  userName: string,
-  categoryName: string,
-  budgetAmount: number,
-  spentAmount: number,
-  threshold: number,
-  isExceeded: boolean
+  userEmailOrParams: string | BudgetAlertEmailParams, 
+  userName?: string,
+  categoryName?: string,
+  budgetAmount?: number,
+  spentAmount?: number,
+  threshold?: number,
+  isExceeded?: boolean
 ): Promise<boolean> {
+  // Handle both parameter styles
+  let params: {
+    userEmail: string;
+    userName: string;
+    categoryName: string;
+    budgetAmount: number;
+    spentAmount: number;
+    threshold: number;
+    isExceeded: boolean;
+  };
+
+  if (typeof userEmailOrParams === 'string') {
+    // Old style parameters
+    if (!userName || !categoryName || budgetAmount === undefined || spentAmount === undefined || isExceeded === undefined) {
+      console.error('Missing required parameters for budget alert email');
+      return false;
+    }
+    params = {
+      userEmail: userEmailOrParams,
+      userName: userName,
+      categoryName: categoryName,
+      budgetAmount: budgetAmount,
+      spentAmount: spentAmount,
+      threshold: threshold || 80,
+      isExceeded: isExceeded
+    };
+  } else {
+    // New style parameters (object)
+    params = {
+      userEmail: userEmailOrParams.to,
+      userName: userEmailOrParams.userName || 'User',
+      categoryName: userEmailOrParams.categoryName,
+      budgetAmount: userEmailOrParams.budgetAmount,
+      spentAmount: userEmailOrParams.spentAmount,
+      threshold: userEmailOrParams.threshold || 80,
+      isExceeded: userEmailOrParams.isExceeded
+    };
+  }
   // Use the same email address for both sender and recipient
   // This works for testing and development, but in production
   // you would need to verify your sending domain with SendGrid
-  const senderEmail = userEmail; // Use the user's own email for testing
+  const senderEmail = params.userEmail; // Use the user's own email for testing
 
-  const alertType = isExceeded ? 'exceeded' : 'threshold reached';
-  const subject = `Budget Alert: ${categoryName} budget ${alertType}`;
+  const alertType = params.isExceeded ? 'exceeded' : 'threshold reached';
+  const subject = `Budget Alert: ${params.categoryName} budget ${alertType}`;
   
-  const percentSpent = Math.round((spentAmount / budgetAmount) * 100);
+  const percentSpent = Math.round((params.spentAmount / params.budgetAmount) * 100);
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
       <h2 style="color: #333; margin-bottom: 20px;">Budget Alert</h2>
-      <p>Hello ${userName},</p>
-      <p>This is an automated alert regarding your budget for <strong>${categoryName}</strong>.</p>
+      <p>Hello ${params.userName},</p>
+      <p>This is an automated alert regarding your budget for <strong>${params.categoryName}</strong>.</p>
       
-      ${isExceeded 
+      ${params.isExceeded 
         ? `<p style="color: #d32f2f; font-weight: bold;">Your budget has been exceeded!</p>` 
-        : `<p style="color: #ff9800; font-weight: bold;">Your budget has reached the alert threshold of ${threshold}%!</p>`
+        : `<p style="color: #ff9800; font-weight: bold;">Your budget has reached the alert threshold of ${params.threshold}%!</p>`
       }
       
       <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p style="margin: 5px 0;"><strong>Budget Amount:</strong> $${budgetAmount.toFixed(2)}</p>
-        <p style="margin: 5px 0;"><strong>Amount Spent:</strong> $${spentAmount.toFixed(2)}</p>
+        <p style="margin: 5px 0;"><strong>Budget Amount:</strong> $${params.budgetAmount.toFixed(2)}</p>
+        <p style="margin: 5px 0;"><strong>Amount Spent:</strong> $${params.spentAmount.toFixed(2)}</p>
         <p style="margin: 5px 0;"><strong>Percentage Used:</strong> ${percentSpent}%</p>
       </div>
       
@@ -103,19 +151,19 @@ export async function sendBudgetAlertEmail(
   `;
 
   const text = `
-    Budget Alert - ${categoryName}
+    Budget Alert - ${params.categoryName}
     
-    Hello ${userName},
+    Hello ${params.userName},
     
-    This is an automated alert regarding your budget for ${categoryName}.
+    This is an automated alert regarding your budget for ${params.categoryName}.
     
-    ${isExceeded 
+    ${params.isExceeded 
       ? `Your budget has been exceeded!` 
-      : `Your budget has reached the alert threshold of ${threshold}%!`
+      : `Your budget has reached the alert threshold of ${params.threshold}%!`
     }
     
-    Budget Amount: $${budgetAmount.toFixed(2)}
-    Amount Spent: $${spentAmount.toFixed(2)}
+    Budget Amount: $${params.budgetAmount.toFixed(2)}
+    Amount Spent: $${params.spentAmount.toFixed(2)}
     Percentage Used: ${percentSpent}%
     
     Please review your spending in the SmartBudget application.
@@ -125,7 +173,7 @@ export async function sendBudgetAlertEmail(
   `;
 
   return sendEmail({
-    to: userEmail,
+    to: params.userEmail,
     from: senderEmail,
     subject,
     text,

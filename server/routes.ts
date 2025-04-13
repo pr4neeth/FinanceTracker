@@ -92,9 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // ------ Category Routes ------
-  app.get("/api/categories", requireAuth, async (req, res, next) => {
+  app.get("/api/categories", async (req, res, next) => {
     try {
-      const categories = await storage.getCategoriesByUserId(req.user.id);
+      // Get all categories without user filtering
+      const categories = await storage.getAllCategories();
       res.json(categories);
     } catch (error) {
       next(error);

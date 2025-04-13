@@ -2,6 +2,8 @@ import { Budget, Category, Transaction } from '@shared/schema';
 import { IStorage } from './storage';
 import { sendBudgetAlertEmail } from './email';
 
+export { sendBudgetAlertEmail };
+
 // This function checks if a budget alert should be sent after a new transaction
 export async function checkBudgetAlerts(
   storage: IStorage,
