@@ -85,8 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Categories routes
   app.get("/api/categories", async (req, res, next) => {
     try {
-      // Use categories from config file instead of database
-      const { getAllCategories } = require('./config/categories');
+      // Use the imported function from categories.ts
       const categories = getAllCategories();
       res.json(categories);
     } catch (error) {
@@ -110,8 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/categories/:id", requireAuth, async (req, res, next) => {
     try {
-      // Import categories from config file
-      const { findCategoryById } = require('./config/categories');
+      // Use imported functions from categories.ts
       const category = findCategoryById(req.params.id);
       
       if (!category) {
@@ -510,7 +508,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
       
       // Use categories from config file instead of database
-      const { getAllCategories } = require('./config/categories');
       const categories = getAllCategories();
       
       // Map for quick category lookups
