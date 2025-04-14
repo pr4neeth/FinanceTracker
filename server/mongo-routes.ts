@@ -749,8 +749,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get total balance from all accounts
-  app.get("/api/accounts/total-balance", requireAuth, async (req, res, next) => {
+  // Get total balance from all accounts - make sure this route is defined BEFORE the /:id route
+  app.get("/api/accounts/balance-total", requireAuth, async (req, res, next) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -766,6 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalBalance += account.balance || 0;
       });
       
+      console.log("Total balance calculated:", totalBalance);
       res.json({ totalBalance });
     } catch (error) {
       console.error("Error calculating total balance:", error);

@@ -19,9 +19,9 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
   
   // Query to fetch total balance from all accounts
   const { data: balanceData, isLoading: isBalanceLoading } = useQuery({
-    queryKey: ["/api/accounts/total-balance"],
+    queryKey: ["/api/accounts/balance-total"],
     queryFn: async () => {
-      const response = await fetch("/api/accounts/total-balance");
+      const response = await fetch("/api/accounts/balance-total");
       if (!response.ok) throw new Error("Failed to fetch total balance");
       return await response.json();
     }
