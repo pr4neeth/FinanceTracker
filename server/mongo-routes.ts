@@ -84,9 +84,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Categories routes
   app.get("/api/categories", async (req, res, next) => {
     try {
-      const categories = await storage.getAllCategories();
+      // Use categories from config file instead of database
+      const { getAllCategories } = require('./config/categories');
+      const categories = getAllCategories();
       res.json(categories);
     } catch (error) {
+      console.error("Error fetching categories:", error);
       next(error);
     }
   });
@@ -106,17 +109,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/categories/:id", requireAuth, async (req, res, next) => {
     try {
-      const category = await storage.getCategoryById(req.params.id);
+      // Import categories from config file
+      const { findCategoryById } = require('./config/categories');
+      const category = findCategoryById(req.params.id);
+      
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      if (category.userId && category.userId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      
       res.json(category);
     } catch (error) {
+      console.error("Error fetching category by ID:", error);
       next(error);
     }
   });
@@ -749,8 +752,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get total balance from all accounts - make sure this route is defined BEFORE the /:id route
-  app.get("/api/accounts/balance-total", requireAuth, async (req, res, next) => {
+  // Get total balance from all accounts - must be BEFORE the /:id route
+  app.get("/api/accounts-total-balance", requireAuth, async (req, res, next) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "Unauthorized" });
