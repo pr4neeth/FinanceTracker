@@ -748,6 +748,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch accounts" });
     }
   });
+  
+  // Get total balance from all accounts
+  app.get("/api/accounts/total-balance", requireAuth, async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get all accounts for the user
+      const accounts = await storage.getAccountsByUserId(req.user._id.toString());
+      
+      let totalBalance = 0;
+      
+      // Sum up the balances from all accounts
+      accounts.forEach(account => {
+        totalBalance += account.balance || 0;
+      });
+      
+      res.json({ totalBalance });
+    } catch (error) {
+      console.error("Error calculating total balance:", error);
+      res.status(500).json({ error: "Failed to calculate total balance" });
+    }
+  });
 
   app.post("/api/plaid/sync-transactions", requireAuth, async (req, res, next) => {
     try {

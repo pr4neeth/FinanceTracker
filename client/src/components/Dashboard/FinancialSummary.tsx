@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Wallet, DollarSign, CreditCard, PiggyBank } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 interface FinancialSummaryProps {
   data?: {
@@ -12,6 +14,26 @@ interface FinancialSummaryProps {
 }
 
 export default function FinancialSummary({ data, isLoading = false }: FinancialSummaryProps) {
+  // State to store total balance
+  const [totalBalance, setTotalBalance] = useState(0);
+  
+  // Query to fetch total balance from all accounts
+  const { data: balanceData, isLoading: isBalanceLoading } = useQuery({
+    queryKey: ["/api/accounts/total-balance"],
+    queryFn: async () => {
+      const response = await fetch("/api/accounts/total-balance");
+      if (!response.ok) throw new Error("Failed to fetch total balance");
+      return await response.json();
+    }
+  });
+  
+  // Update total balance when data is fetched
+  useEffect(() => {
+    if (balanceData) {
+      setTotalBalance(balanceData.totalBalance);
+    }
+  }, [balanceData]);
+  
   // Function to calculate the percentage change (for demo purposes, use random values if no real data)
   const getPercentageChange = (type: string) => {
     // In a real app, this would calculate based on previous period data
@@ -31,13 +53,15 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
   const income = data?.income || 0;
   const expenses = data?.expenses || 0;
   const savings = data?.savings || 0;
-  const balance = income - expenses + savings; // Total balance calculation
+  
+  // Use the actual total balance from accounts instead of calculating it
+  const balance = totalBalance;
 
   // Percentage changes
   const incomeChange = getPercentageChange("income");
   const expensesChange = getPercentageChange("expenses");
   const savingsChange = getPercentageChange("savings");
-  const balanceChange = (incomeChange - expensesChange + savingsChange) / 3; // Simplified calculation
+  const balanceChange = getPercentageChange("balance"); // Random for now, could be calculated from historical data
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
