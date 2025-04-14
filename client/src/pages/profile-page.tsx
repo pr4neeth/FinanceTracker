@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ProfilePage() {
-  const { user, logoutMutation } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   
   const [fullName, setFullName] = useState(user?.fullName || "");
@@ -107,13 +107,27 @@ export default function ProfilePage() {
     changePasswordMutation.mutate({ currentPassword, newPassword });
   };
   
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
   
-  const isProfileUpdating = updateProfileMutation.isPending;
-  const isPasswordChanging = changePasswordMutation.isPending;
-  const isLoggingOut = logoutMutation.isPending;
+  // Use status.isLoading for TanStack Query v5 compatibility
+  const isProfileUpdating = updateProfileMutation.status === 'loading';
+  const isPasswordChanging = changePasswordMutation.status === 'loading';
   
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
