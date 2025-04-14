@@ -15,6 +15,7 @@ export interface IStorage {
   getUser(id: string): Promise<UserDocument | null>;
   getUserByUsername(username: string): Promise<UserDocument | null>;
   createUser(user: InsertUser): Promise<UserDocument>;
+  updateUser(id: string, data: Partial<InsertUser>): Promise<UserDocument | null>;
   getAllUsers(): Promise<UserDocument[]>;
   
   // Category methods

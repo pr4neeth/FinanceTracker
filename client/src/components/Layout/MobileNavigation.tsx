@@ -4,7 +4,8 @@ import {
   ArrowRightLeft, 
   Wallet, 
   Lightbulb, 
-  MoreHorizontal 
+  MoreHorizontal,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -22,7 +23,8 @@ export default function MobileNavigation({ activePage }: MobileNavigationProps) 
     { name: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="text-lg" />, path: "/" },
     { name: "transactions", label: "Transactions", icon: <ArrowRightLeft className="text-lg" />, path: "/transactions" },
     { name: "budgets", label: "Budgets", icon: <Wallet className="text-lg" />, path: "/budgets" },
-    { name: "insights", label: "Insights", icon: <Lightbulb className="text-lg" />, path: "/insights" },
+    { name: "insights", label: "AI Insights", icon: <Lightbulb className="text-lg" />, path: "/ai-insights" },
+    { name: "profile", label: "Profile", icon: <User className="text-lg" />, path: "/profile" },
   ];
 
   const handleNavigation = (path: string) => {
