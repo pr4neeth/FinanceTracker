@@ -94,27 +94,6 @@ export const DEFAULT_CATEGORIES = [
   }
 ];
 
-// Helper function to find a category by name (case-insensitive partial match)
-export function findCategoryByName(name: string) {
-  const lowerName = name.toLowerCase();
-  return DEFAULT_CATEGORIES.find(category => 
-    category.name.toLowerCase().includes(lowerName) || 
-    lowerName.includes(category.name.toLowerCase())
-  );
-}
-
-// Helper function to find a category by ID
-export function findCategoryById(id: string) {
-  return DEFAULT_CATEGORIES.find(category => 
-    category._id.toString() === id
-  );
-}
-
-// Function to get all categories
-export function getAllCategories() {
-  return DEFAULT_CATEGORIES;
-}
-
 // Map to quickly find categories by common expense types/keywords
 export const CATEGORY_KEYWORDS = {
   // Housing related
@@ -197,6 +176,27 @@ export const CATEGORY_KEYWORDS = {
   'misc': '000000000000000000000015',
   'unknown': '000000000000000000000015'
 };
+
+// Helper function to find a category by name (case-insensitive partial match)
+export function findCategoryByName(name: string) {
+  const lowerName = name.toLowerCase();
+  return DEFAULT_CATEGORIES.find(category => 
+    category.name.toLowerCase().includes(lowerName) || 
+    lowerName.includes(category.name.toLowerCase())
+  );
+}
+
+// Helper function to find a category by ID
+export function findCategoryById(id: string) {
+  return DEFAULT_CATEGORIES.find(category => 
+    category._id.toString() === id
+  );
+}
+
+// Function to get all categories
+export function getAllCategories() {
+  return DEFAULT_CATEGORIES;
+}
 
 // Helper function to categorize a transaction description
 export function categorizeTxByDescription(description: string): Types.ObjectId | null {

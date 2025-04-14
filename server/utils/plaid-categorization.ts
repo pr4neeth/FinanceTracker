@@ -8,12 +8,10 @@ import { findCategoryByName, categorizeTxByDescription } from '../config/categor
  * @param transaction Plaid transaction object
  * @returns MongoDB ObjectId for matched category or null if no match
  */
-export function categorizePlaidTransaction(transaction: any): Types.ObjectId | null {
+export function categorizePlaidTransactionWithConfig(transaction: any): Types.ObjectId | null {
   if (!transaction) return null;
   
   // Try to find a matching category
-  let categoryId = null;
-  
   if (transaction.category && transaction.category.length > 0) {
     // Try to match Plaid category to our categories
     const primaryCategory = transaction.category[0].toLowerCase();
