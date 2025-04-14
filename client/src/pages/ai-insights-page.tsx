@@ -486,7 +486,7 @@ export default function AiInsightsPage() {
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
                             <DollarSign className="h-5 w-5 text-green-500" />
-                            Potential Savings: ${suggestion.estimatedSaving?.toFixed(2) || '0.00'}/month
+                            Potential Savings: ${(suggestion.estimated_monthly_savings || suggestion.estimatedSaving || 0).toFixed(2)}/month
                           </CardTitle>
                           <CardDescription className="flex items-center gap-1">
                             {getDifficultyIcon(suggestion.difficulty)}
