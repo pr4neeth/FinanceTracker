@@ -1,23 +1,16 @@
-import { useState } from "react";
-import Header from "@/components/Layout/Header";
-import Sidebar from "@/components/Layout/Sidebar";
-import MobileNavigation from "@/components/Layout/MobileNavigation";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-simple-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { User, Edit2, Check, X, LogOut } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Loader2, Save, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import Sidebar from "@/components/Layout/Sidebar";
+import MobileNavigation from "@/components/Layout/MobileNavigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,275 +24,250 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: user?.fullName || "",
-    email: user?.email || "",
-  });
-
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
-  const closeMobileMenu = () => setMobileMenuOpen(false);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
+  
+  const [fullName, setFullName] = useState(user?.fullName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Profile update mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { fullName: string; email: string }) => {
-      const response = await apiRequest("PATCH", "/api/user/profile", data);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update profile");
-      }
-      return await response.json();
+      const res = await apiRequest("PATCH", "/api/user/profile", data);
+      return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      setIsEditing(false);
       toast({
         title: "Profile updated",
         description: "Your profile information has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Update failed",
-        description: error.message,
+        description: error.message || "Failed to update profile information.",
         variant: "destructive",
       });
     },
   });
-
+  
+  // Password change mutation
   const changePasswordMutation = useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      const response = await apiRequest("POST", "/api/user/change-password", data);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to change password");
-      }
-      return await response.json();
+      const res = await apiRequest("POST", "/api/user/change-password", data);
+      return await res.json();
     },
     onSuccess: () => {
       toast({
         title: "Password changed",
-        description: "Your password has been updated successfully.",
+        description: "Your password has been changed successfully.",
       });
-      // Reset the form
-      const passwordForm = document.getElementById("password-form") as HTMLFormElement;
-      if (passwordForm) passwordForm.reset();
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Password change failed",
-        description: error.message,
+        description: error.message || "Failed to change password.",
         variant: "destructive",
       });
     },
   });
-
-  const handleSaveProfile = () => {
-    updateProfileMutation.mutate({
-      fullName: formData.fullName,
-      email: formData.email,
-    });
-  };
-
-  const handleChangePassword = (e: React.FormEvent) => {
+  
+  const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    const currentPassword = formData.get("currentPassword") as string;
-    const newPassword = formData.get("newPassword") as string;
-    const confirmPassword = formData.get("confirmPassword") as string;
-
+    updateProfileMutation.mutate({ fullName, email });
+  };
+  
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Password mismatch",
-        description: "New password and confirmation do not match.",
+        title: "Passwords don't match",
+        description: "New password and confirmation password must match.",
         variant: "destructive",
       });
       return;
     }
-
-    changePasswordMutation.mutate({
-      currentPassword,
-      newPassword,
-    });
+    
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    changePasswordMutation.mutate({ currentPassword, newPassword });
   };
-
+  
   const handleLogout = () => {
-    logout();
+    logoutMutation.mutate();
   };
-
+  
+  const isProfileUpdating = updateProfileMutation.isPending;
+  const isPasswordChanging = changePasswordMutation.isPending;
+  const isLoggingOut = logoutMutation.isPending;
+  
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50">
-      <Header 
-        toggleMobileMenu={toggleMobileMenu} 
-        username={user?.fullName || user?.username || "User"}
-      />
-      
-      <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen">
+      <div className="hidden md:flex w-64 border-r">
         <Sidebar activePage="profile" />
+      </div>
+      
+      <div className="flex-1 flex flex-col">
+        <div className="md:hidden">
+          <MobileNavigation activePage="profile" />
+        </div>
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-neutral-50">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-neutral-900">Your Profile</h1>
-            <p className="text-neutral-600">
+        <main className="flex-1 p-6">
+          <div className="max-w-3xl mx-auto space-y-8">
+            <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
+            <p className="text-muted-foreground">
               Manage your account settings and preferences
             </p>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>
-                    Update your personal details
-                  </CardDescription>
-                </div>
-                {!isEditing ? (
-                  <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="h-8 w-8">
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)} className="h-8 w-8">
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={handleSaveProfile} className="h-8 w-8" disabled={updateProfileMutation.isPending}>
-                      {updateProfileMutation.isPending ? (
-                        <span className="animate-spin h-4 w-4 border-2 border-neutral-300 border-t-primary rounded-full" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="fullName">Full Name</Label>
-                      {isEditing ? (
-                        <Input 
-                          id="fullName" 
-                          name="fullName" 
-                          value={formData.fullName} 
-                          onChange={handleInputChange} 
-                          className="mt-1"
-                        />
-                      ) : (
-                        <div className="mt-1 p-2 bg-neutral-100 rounded text-neutral-800">
-                          {user?.fullName || "Not set"}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="username">Username</Label>
-                      <div className="mt-1 p-2 bg-neutral-100 rounded text-neutral-800">
-                        {user?.username}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="email">Email Address</Label>
-                    {isEditing ? (
-                      <Input 
-                        id="email" 
-                        name="email" 
-                        type="email" 
-                        value={formData.email} 
-                        onChange={handleInputChange} 
-                        className="mt-1"
-                      />
-                    ) : (
-                      <div className="mt-1 p-2 bg-neutral-100 rounded text-neutral-800">
-                        {user?.email || "Not set"}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
             
+            <Separator />
+            
+            {/* Personal Information Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Account Security</CardTitle>
+                <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
-                  Manage your password and account security
+                  Update your personal information and contact details
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form id="password-form" onSubmit={handleChangePassword} className="space-y-4">
-                  <div>
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input 
-                      id="currentPassword" 
-                      name="currentPassword" 
-                      type="password" 
-                      className="mt-1" 
-                      required
+                <form onSubmit={handleProfileUpdate} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="John Doe"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input 
-                      id="newPassword" 
-                      name="newPassword" 
-                      type="password" 
-                      className="mt-1" 
-                      required
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="john.doe@example.com"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input 
-                      id="confirmPassword" 
-                      name="confirmPassword" 
-                      type="password" 
-                      className="mt-1" 
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={changePasswordMutation.isPending}
-                  >
-                    {changePasswordMutation.isPending ? "Updating..." : "Change Password"}
+                  
+                  <Button type="submit" disabled={isProfileUpdating}>
+                    {isProfileUpdating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
                   </Button>
                 </form>
-
-                <Separator className="my-6" />
-                
+              </CardContent>
+            </Card>
+            
+            {/* Security Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Security</CardTitle>
+                <CardDescription>Manage your password and security preferences</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                  
+                  <Button type="submit" disabled={isPasswordChanging}>
+                    {isPasswordChanging ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Changing...
+                      </>
+                    ) : (
+                      "Change Password"
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+            
+            {/* Logout Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Account</CardTitle>
+                <CardDescription>Sign out from your account</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full flex gap-2 items-center">
-                      <LogOut className="h-4 w-4" />
-                      Log Out
+                    <Button variant="destructive" disabled={isLoggingOut}>
+                      {isLoggingOut ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Logging out...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </>
+                      )}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Log out of your account?</AlertDialogTitle>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        You will be logged out of your account. You can log back in at any time.
+                        You will be logged out of your account and redirected to the login page.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout}>Log Out</AlertDialogAction>
+                      <AlertDialogAction onClick={handleLogout}>Sign Out</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -308,16 +276,6 @@ export default function ProfilePage() {
           </div>
         </main>
       </div>
-      
-      <MobileNavigation activePage="profile" />
-      
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={closeMobileMenu}>
-          <div className="fixed right-0 top-0 bottom-0 w-4/5 max-w-xs bg-white shadow-lg overflow-y-auto z-50" onClick={(e) => e.stopPropagation()}>
-            <Sidebar isMobile={true} onClose={closeMobileMenu} activePage="profile" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

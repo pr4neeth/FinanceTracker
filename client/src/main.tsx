@@ -11,6 +11,7 @@ import BudgetsPage from "@/pages/budgets-page";
 import BillsPage from "@/pages/bills-page";
 import AccountsPage from "@/pages/accounts-page";
 import AiInsightsPage from "@/pages/ai-insights-page";
+import ProfilePage from "@/pages/profile-page";
 import { AuthProvider, useAuth } from "@/hooks/use-simple-auth";
 import {
   BudgetAlertsProvider,
@@ -141,6 +142,12 @@ function AppContent() {
         <Route path="/accounts">
           <ProtectedRoute>
             <AccountsPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/profile">
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         </Route>
 
