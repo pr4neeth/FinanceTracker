@@ -10,6 +10,7 @@ import { checkBudgetAlerts } from "./budget-alerts";
 import { sendBudgetAlertEmail } from "./email";
 import { checkBillReminders, sendAllBillReminders } from "./email-reminders";
 import { getAllCategories, findCategoryByName, findCategoryById, categorizeTxByDescription } from "./config/categories";
+import { categorizePlaidTransaction } from "./utils/plaid-categorization";
 import {
   analyzeReceipt,
   generateFinancialAdvice,
