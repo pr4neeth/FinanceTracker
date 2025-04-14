@@ -153,4 +153,60 @@ export function setupAuth(app: Express) {
       email: req.user.email
     });
   });
+  
+  // Profile update routes
+  app.patch("/api/user/profile", requireAuth, async (req, res, next) => {
+    try {
+      const { fullName, email } = req.body;
+      
+      // Update the user
+      const updatedUser = await storage.updateUser(req.user._id.toString(), {
+        fullName,
+        email
+      });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        id: updatedUser._id,
+        username: updatedUser.username,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Change password route
+  app.post("/api/user/change-password", requireAuth, async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      // Verify the current password
+      const user = await storage.getUser(req.user._id.toString());
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const isPasswordValid = await comparePasswords(currentPassword, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(newPassword);
+      
+      // Update the user's password
+      await storage.updateUser(req.user._id.toString(), {
+        password: hashedPassword
+      });
+      
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
 }

@@ -145,6 +145,15 @@ export class MongoStorage implements IStorage {
     }
   }
   
+  async updateUser(id: string, data: Partial<InsertUser>): Promise<UserDocument | null> {
+    try {
+      return await User.findByIdAndUpdate(id, data, { new: true });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return null;
+    }
+  }
+  
   // Category methods
   async createCategory(category: InsertCategory): Promise<CategoryDocument> {
     try {
