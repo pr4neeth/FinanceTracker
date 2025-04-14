@@ -9,6 +9,7 @@ import fs from "fs";
 import { checkBudgetAlerts } from "./budget-alerts";
 import { sendBudgetAlertEmail } from "./email";
 import { checkBillReminders, sendAllBillReminders } from "./email-reminders";
+import { getAllCategories, findCategoryByName, findCategoryById, categorizeTxByDescription } from "./config/categories";
 import {
   analyzeReceipt,
   generateFinancialAdvice,
@@ -507,7 +508,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      
+      // Use categories from config file instead of database
+      const { getAllCategories } = require('./config/categories');
+      const categories = getAllCategories();
       
       // Map for quick category lookups
       const categoryMap = new Map(categories.map(c => [c._id.toString(), c.name]));
