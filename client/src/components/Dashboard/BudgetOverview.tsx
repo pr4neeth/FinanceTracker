@@ -146,37 +146,6 @@ export default function BudgetOverview({ budgets, isLoading }: BudgetOverviewPro
               >
                 Adjust Budgets
               </Button>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => {
-                  console.log("Test Alert button clicked");
-                  if (sortedBudgets && sortedBudgets.length > 0 && categories) {
-                    const budget = sortedBudgets[0];
-                    const category = categories.find((c: any) => c._id === budget.categoryId);
-                    const categoryName = category ? category.name : `Category ${budget.categoryId}`;
-                    const spentAmount = getSpendingAmount(budget);
-                    
-                    console.log("Adding budget alert:", {
-                      categoryName,
-                      budgetAmount: budget.amount,
-                      spentAmount,
-                      isExceeded: spentAmount > budget.amount
-                    });
-                    
-                    addBudgetAlert(
-                      categoryName,
-                      budget.amount,
-                      spentAmount,
-                      spentAmount > budget.amount
-                    );
-                  } else {
-                    console.error("Cannot create test alert: Missing budget or category data");
-                  }
-                }}
-              >
-                Test Alert
-              </Button>
             </div>
           </div>
         ) : (

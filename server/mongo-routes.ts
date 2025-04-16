@@ -6,7 +6,7 @@ import multer from "multer";
 import { WebSocketServer } from "ws";
 import path from "path";
 import fs from "fs";
-import { checkBudgetAlerts } from "./budget-alerts";
+import { checkBudgetAlerts } from "./mongo-budget-alerts";
 import { sendBudgetAlertEmail } from "./email";
 import { checkBillReminders, sendAllBillReminders } from "./email-reminders";
 import { getAllCategories, findCategoryByName, findCategoryById, categorizeTxByDescription } from "./config/categories";
@@ -287,9 +287,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Convert categoryId and accountId to ObjectId if present
-      if (transactionData.categoryId) {
-        transactionData.categoryId = new Types.ObjectId(transactionData.categoryId);
-      }
       
       if (transactionData.accountId) {
         transactionData.accountId = new Types.ObjectId(transactionData.accountId);
@@ -453,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const budgetData = {
         ...req.body,
         userId: req.user._id,
-        categoryId: new Types.ObjectId(req.body.categoryId),
+        categoryId: req.body.categoryId,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate || req.body.startDate)
       };
@@ -576,6 +573,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/budgets/:id", async (req, res, next) => {
+    try {
+      const budget = await storage.getBudgetById(req.params.id);
+      if (!budget) {
+        return res.status(404).json({ message: "Budget not found" });
+      }
+      
+      if (!req.user || budget.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Prepare update data
+      let updateData = { ...req.body };
+    
+      
+      // Convert dates if present
+      if (updateData.startDate) {
+        updateData.startDate = new Date(updateData.startDate);
+      }
+      
+      if (updateData.endDate) {
+        updateData.endDate = new Date(updateData.endDate);
+      }
+      
+      const updatedBudget = await storage.updateBudget(req.params.id, updateData);
+      res.json(updatedBudget);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/budgets/:id", async (req, res, next) => {
     try {
       const budget = await storage.getBudgetById(req.params.id);
@@ -590,10 +618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prepare update data
       let updateData = { ...req.body };
       
-      // Convert categoryId to ObjectId if present
-      if (updateData.categoryId) {
-        updateData.categoryId = new Types.ObjectId(updateData.categoryId);
-      }
       
       // Convert dates if present
       if (updateData.startDate) {
@@ -824,54 +848,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await getTransactions(plaidItem.accessToken);
       const accountTransactions = transactions.filter(t => t.account_id === account.plaidAccountId);
       
-      // Store new transactions
-      const existingTransactions = await storage.getTransactionsByUserId(req.user._id.toString());
-      let newTransactions = 0;
-      
-      for (const transaction of accountTransactions) {
-        // Check if this transaction already exists
-        const exists = existingTransactions.some(t => 
-          t.description === transaction.name && 
-          new Date(t.date).toDateString() === new Date(transaction.date).toDateString() &&
-          Math.abs(t.amount - transaction.amount) < 0.001
-        );
-        
-        if (!exists) {
-          // Try to find a matching category
-          let categoryId = null;
-          const categories = await storage.getCategoriesByUserId(req.user._id.toString());
-          
-          if (transaction.category && transaction.category.length > 0) {
-            // Try to match Plaid category to our categories
-            const primaryCategory = transaction.category[0].toLowerCase();
-            for (const category of categories) {
-              if (category.name.toLowerCase().includes(primaryCategory)) {
-                categoryId = category._id;
-                break;
-              }
-            }
-          }
-          
-          await storage.createTransaction({
-            description: transaction.name,
-            date: new Date(transaction.date),
-            amount: transaction.amount,
-            userId: new Types.ObjectId(req.user._id.toString()),
-            categoryId,
-            accountId: account._id,
-            isIncome: transaction.amount < 0, // Assuming negative amounts are income
-            notes: `Imported from ${account.name}`,
-            receiptImageUrl: "",
-          });
-          
-          newTransactions++;
-        }
-      }
-      
       res.json({ 
         success: true, 
-        message: `Synced ${newTransactions} new transactions`,
-        newTransactionsCount: newTransactions
+        message: `Synced transactions`
       });
     } catch (error) {
       console.error("Error syncing transactions:", error);
@@ -905,10 +884,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: new Date(req.body.dueDate)
       };
       
-      // Convert categoryId to ObjectId if present
-      if (billData.categoryId) {
-        billData.categoryId = new Types.ObjectId(billData.categoryId);
-      }
       
       const bill = await storage.createBill(billData);
       res.status(201).json(bill);
@@ -924,7 +899,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const days = req.query.days ? parseInt(req.query.days as string) : 7;
+      
+      console.log(`Fetching upcoming bills for user ${req.user._id.toString()} for the next ${days} days`);
+      
       const bills = await storage.getUpcomingBills(req.user._id.toString(), days);
+      
+      console.log(`Found ${bills.length} upcoming bills. Recurring bills properly processed.`);
+      
+      // Log all upcoming bills for debugging
+      if (bills.length > 0) {
+        console.log('Upcoming bills:');
+        bills.forEach((bill, index) => {
+          const dueDateFormatted = new Date(bill.dueDate).toLocaleDateString();
+          console.log(`Bill ${index + 1}: ${bill.name}, due on ${dueDateFormatted}${bill ? ' (recurring)' : ''}`);
+        });
+      }
       
       res.json(bills);
     } catch (error) {
@@ -949,6 +938,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/bills/:id", async (req, res, next) => {
+    try {
+      const bill = await storage.getBillById(req.params.id);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      if (!req.user || bill.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Prepare update data
+      let updateData = { ...req.body };
+      
+      // Convert due date if present
+      if (updateData.dueDate) {
+        updateData.dueDate = new Date(updateData.dueDate);
+      }
+      
+      const updatedBill = await storage.updateBill(req.params.id, updateData);
+      res.json(updatedBill);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/bills/:id", async (req, res, next) => {
     try {
       const bill = await storage.getBillById(req.params.id);
@@ -963,11 +978,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prepare update data
       let updateData = { ...req.body };
       
-      // Convert categoryId to ObjectId if present
-      if (updateData.categoryId) {
-        updateData.categoryId = new Types.ObjectId(updateData.categoryId);
-      }
-      
       // Convert due date if present
       if (updateData.dueDate) {
         updateData.dueDate = new Date(updateData.dueDate);
@@ -979,6 +989,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+
+  app.post("/api/bills/:id/mark-paid", async (req, res, next) => {
+    try {
+            // Step 1: Check if this is a regular bill in the database
+      const bill = await storage.getBillById(req.params.id);
+      
+      // Step 2: Handle upcoming virtual bills specially
+      if (!bill) {
+        console.log(`Bill with ID ${req.params.id} not found in database, might be an upcoming occurrence`);
+        
+        // Check if request includes upcoming bill data
+        const upcomingBillData = req.body;
+        
+        if (upcomingBillData && (upcomingBillData.isRecurringOccurrence || upcomingBillData.isRecurring)) {
+          console.log(`Handling virtual upcoming bill: ${upcomingBillData.name}`);
+          
+          if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+          }
+          
+          // Create a real entry in the database for this occurrence first
+          const newBillData = {
+            name: upcomingBillData.name,
+            amount: upcomingBillData.amount,
+            dueDate: new Date(upcomingBillData.dueDate),
+            originalStartDate: upcomingBillData.originalStartDate ? new Date(upcomingBillData.originalStartDate) : undefined,
+            recurringPeriod: upcomingBillData.recurringPeriod,
+            userId: req.user._id,
+            categoryId: upcomingBillData.categoryId,
+            isPaid: true, // Mark as paid immediately
+            notes: upcomingBillData.notes || '',
+            reminderDays: upcomingBillData.reminderDays || 3,
+            isRecurring: upcomingBillData.isRecurring || false
+          };
+          
+          // Create the bill record in the database
+          const createdBill = await storage.createBill(newBillData);
+          console.log(`Created bill record for upcoming occurrence: ${createdBill._id}`);
+          
+          // Create a transaction for this bill payment
+          const transactionData = {
+            description: `Payment: ${newBillData.name}`,
+            amount: newBillData.amount,
+            date: new Date(),
+            userId: req.user._id,
+            categoryId: newBillData.categoryId,
+            isIncome: false,
+            notes: `Automatic transaction for bill payment: ${newBillData.name}`
+          };
+          
+          // Create the transaction record
+          const transaction = await storage.createTransaction(transactionData);
+          console.log(`Created transaction ${transaction._id} for upcoming bill payment ${newBillData.name}`);
+          
+          // Create the next occurrence if it's recurring
+          let nextOccurrence = null;
+          
+          if (newBillData.recurringPeriod && newBillData.recurringPeriod !== 'once') {
+            // Calculate the next due date based on the recurring period
+            const nextDueDate = calculateNextDueDate(new Date(newBillData.dueDate), newBillData.recurringPeriod);
+            
+            // Create the next occurrence of this bill
+            const nextBillData = {
+              name: newBillData.name,
+              amount: newBillData.amount, 
+              dueDate: nextDueDate,
+              originalStartDate: newBillData.originalStartDate || new Date(newBillData.dueDate),
+              recurringPeriod: newBillData.recurringPeriod,
+              userId: req.user._id,
+              categoryId: newBillData.categoryId,
+              isPaid: false,
+              notes: newBillData.notes || '',
+              reminderDays: newBillData.reminderDays || 3
+            };
+            
+            nextOccurrence = await storage.createBill(nextBillData);
+            console.log(`Created next occurrence of recurring bill ${newBillData.name} due on ${nextDueDate}`);
+          }
+          
+          return res.json({
+            success: true,
+            message: "Upcoming bill occurrence marked as paid and transaction created",
+            paidBill: createdBill,
+            transaction: transaction,
+            nextOccurrence: nextOccurrence
+          });
+        } else {
+          return res.status(404).json({ message: "Bill not found" });
+        }
+      }
+      
+      // Continue with regular bill handling if found in database
+      
+      if (!req.user || bill.userId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Create a transaction for this bill payment
+      const transactionData = {
+        description: `Payment: ${bill.name}`,
+        amount: bill.amount,
+        date: new Date(),
+        userId: req.user._id,
+        categoryId: bill.categoryId,
+        isIncome: false,
+        notes: `Automatic transaction for bill payment: ${bill.name}`
+      };
+      
+      // Create the transaction record
+      const transaction = await storage.createTransaction(transactionData);
+      console.log(`Created transaction ${transaction._id} for bill payment ${bill.name}`);
+      
+      // Step 1: Mark the current bill as paid
+      
+      // Step 2: For recurring bills, create the next occurrence
+      let updateBill = null;
+      
+      if (bill.recurringPeriod && bill.recurringPeriod !== 'once') {
+        // Save the original start date if not already set
+        const originalStartDate = bill.originalStartDate || bill.dueDate;
+        
+        // Calculate the next due date based on the recurring period
+        const nextDueDate = calculateNextDueDate(bill.dueDate, bill.recurringPeriod);
+        
+        // Create the next occurrence of this bill
+        const nextBillData = {
+          name: bill.name,
+          amount: bill.amount,
+          dueDate: nextDueDate,
+          originalStartDate: originalStartDate,
+          recurringPeriod: bill.recurringPeriod,
+          userId: bill.userId,
+          categoryId: bill.categoryId,
+          isPaid: true,
+          notes: bill.notes,
+          reminderDays: bill.reminderDays
+        };
+        
+        updateBill = await storage.updateBill(req.params.id, nextBillData);
+        console.log(`Created next occurrence of recurring bill ${bill.name} due on ${nextDueDate}`);
+      }
+      
+      res.json({
+        success: true,
+        message: "Bill marked as paid and transaction created",
+        paidBill: updateBill,
+        transaction: transaction
+      });
+    } catch (error) {
+      console.error("Error marking bill as paid:", error);
+      next(error);
+    }
+  });
+  
+  // Helper function to calculate next due date for a recurring bill
+  function calculateNextDueDate(currentDueDate: Date, recurringPeriod: string): Date {
+    const nextDueDate = new Date(currentDueDate);
+    
+    switch (recurringPeriod.toLowerCase()) {
+      case 'weekly':
+        nextDueDate.setDate(nextDueDate.getDate() + 7);
+        break;
+        
+      case 'monthly':
+        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+        break;
+        
+      case 'quarterly':
+        nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+        break;
+        
+      case 'yearly':
+        nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+        break;
+        
+      default:
+        // Default to monthly if not recognized
+        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+    }
+    
+    return nextDueDate;
+  }
 
   app.delete("/api/bills/:id", async (req, res, next) => {
     try {
@@ -998,6 +1190,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to delete bill" });
       }
     } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/bills/check-reminders", async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      console.log(`Manually checking bill reminders for user ${req.user._id}`);
+      
+      // Use the checkBillReminders function to send reminders for just this user
+      await checkBillReminders(storage, req.user._id.toString());
+      
+      res.json({ success: true, message: "Bill reminders checked and sent if needed" });
+    } catch (error) {
+      console.error("Error checking bill reminders:", error);
       next(error);
     }
   });
@@ -1503,6 +1713,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/categorized-spending", async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+      const month = req.query.month ? parseInt(req.query.month as string) : new Date().getMonth() + 1;
+      
+      // Define date range for the current month
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0); // Last day of month
+      
+      // Get transactions for the month
+      const transactions = await storage.getTransactionsByDateRange(
+        req.user._id.toString(), 
+        startDate, 
+        endDate
+      );
+      
+      // Use predefined categories from config
+      const categories = getAllCategories();
+      const categoryMap = new Map(categories.map(c => [c._id.toString(), {
+        _id: c._id.toString(),
+        name: c.name,
+        icon: c.icon,
+        color: c.color
+      }]));
+      
+      // Group transactions by category
+      const categoryExpenses: Record<string, any> = {};
+      
+      // Debug transaction data
+      console.log("MongoDB - First transaction categoryId (raw):", 
+        transactions.length > 0 ? JSON.stringify(transactions[0].categoryId) : "No transactions"
+      );
+      
+      if (transactions.length > 0) {
+        console.log("Transactions data (first item):", JSON.stringify(transactions[0], null, 2));
+        console.log("Sample transaction categoryId type:", typeof transactions[0].categoryId);
+        console.log("Sample transaction categoryId value:", transactions[0].categoryId);
+      }
+      
+      // Set up expense buckets for each category first
+      categories.forEach(c => {
+        const categoryId = c._id.toString();
+        categoryExpenses[categoryId] = {
+          category: {
+            _id: categoryId,
+            name: c.name,
+            icon: c.icon,
+            color: c.color
+          },
+          amount: 0
+        };
+      });
+      
+      // Add an "Uncategorized" bucket
+      categoryExpenses["uncategorized"] = {
+        category: {
+          _id: "uncategorized",
+          name: "Uncategorized",
+          icon: "question",
+          color: "#64748B" 
+        },
+        amount: 0
+      };
+      
+      for (const transaction of transactions) {
+        // Skip income transactions
+        if (transaction.isIncome) continue;
+        
+        // If transaction has no category assigned, group as "Uncategorized"
+        const categoryId = transaction.categoryId ? transaction.categoryId.toString() : "uncategorized";
+        
+        // Add transaction amount to category total
+        if (categoryExpenses[categoryId]) {
+          categoryExpenses[categoryId].amount += transaction.amount;
+        } else {
+          // If category doesn't exist in our map, add to uncategorized
+          categoryExpenses["uncategorized"].amount += transaction.amount;
+        }
+      }
+      
+      // Filter out categories with 0 amount to keep chart clean
+      const filteredExpenses = Object.values(categoryExpenses).filter((item: any) => item.amount > 0);
+      
+      // Add a "Total" category that sums all expenses
+      const totalExpenses = filteredExpenses.reduce((sum: number, item: any) => sum + item.amount, 0);
+      
+      if (totalExpenses > 0) {
+        filteredExpenses.push({
+          category: {
+            _id: "total",
+            name: "Total Expenses",
+            icon: "dollar",
+            color: "#64748B"
+          },
+          amount: totalExpenses
+        });
+      }
+      
+      // Sort by amount (descending)
+      filteredExpenses.sort((a: any, b: any) => b.amount - a.amount);
+      
+      res.json({
+        categorizedExpenses: filteredExpenses,
+        year,
+        month
+      });
+    } catch (error) {
+      console.error("Error in categorized spending:", error);
+      next(error);
+    }
+  });
+
+  
+  // Endpoint to get current month's income only
+  app.get("/api/analytics/current-month-income", async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Current year and month
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+      
+      // Define the date range for the specified month
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0);
+      
+      // Get transactions for the current month
+      const transactions = await storage.getTransactionsByDateRange(
+        req.user._id.toString(), 
+        startDate, 
+        endDate
+      );
+      
+      // Calculate income from transactions marked as income
+      let income = 0;
+      for (const transaction of transactions) {
+        if (transaction.isIncome) {
+          income += transaction.amount;
+        }
+      }
+      
+      res.json({ income, month, year });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/analytics/yearly-summary", async (req, res, next) => {
     try {
       if (!req.user) {
@@ -1654,7 +2018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's transaction history
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 100);
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = getAllCategories();
       
       // Prepare data for prediction
       const categoryMap = new Map(categories.map(c => [c._id.toString(), c.name]));
@@ -1663,7 +2027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Group transactions by month and category
       for (const transaction of transactions) {
         if (!transaction.isIncome && transaction.categoryId) {
-          const categoryId = transaction.categoryId.toString();
+          const categoryId = transaction.categoryId;
           const categoryName = categoryMap.get(categoryId) || `Category ${categoryId}`;
           
           if (!categoryExpenses[categoryName]) {
@@ -1706,11 +2070,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's financial data
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 100);
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = getAllCategories();
       const goals = await storage.getGoalsByUserId(req.user._id.toString());
       
       // Calculate expenses by category
-      const categoryMap = new Map(categories.map(c => [c._id.toString(), c.name]));
+      const categoryMap = new Map(categories.map(c => [c._id, c.name]));
       const categoryExpenses: Record<string, number> = {};
       let income = 0;
       
@@ -1718,7 +2082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (transaction.isIncome) {
           income += transaction.amount;
         } else if (transaction.categoryId) {
-          const categoryId = transaction.categoryId.toString();
+          const categoryId = transaction.categoryId;
           const categoryName = categoryMap.get(categoryId) || `Category ${categoryId}`;
           categoryExpenses[categoryName] = (categoryExpenses[categoryName] || 0) + transaction.amount;
         } else {
@@ -1808,9 +2172,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 100);
       
       // Get categories
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = getAllCategories();
       const categoryMap = new Map();
-      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      categories.forEach(c => categoryMap.set(c._id, c.name));
       
       // Group transactions by category
       const categoryExpenses = new Map();
@@ -1900,9 +2264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString(), 50);
       
       // Get categories
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = getAllCategories();
       const categoryMap = new Map();
-      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      categories.forEach(c => categoryMap.set(c._id, c.name));
       
       // Calculate monthly income
       let monthlyIncome = 0;
@@ -1992,9 +2356,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const goals = await storage.getGoalsByUserId(req.user._id.toString());
       
       // Get categories
-      const categories = await storage.getCategoriesByUserId(req.user._id.toString());
+      const categories = getAllCategories();
       const categoryMap = new Map();
-      categories.forEach(c => categoryMap.set(c._id.toString(), c.name));
+      categories.forEach(c => categoryMap.set(c._id, c.name));
       
       // Calculate income, expenses by category, and total savings
       let income = 0;

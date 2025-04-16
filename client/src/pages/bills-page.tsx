@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Header from "@/components/Layout/Header";
 import Sidebar from "@/components/Layout/Sidebar";
 import MobileNavigation from "@/components/Layout/MobileNavigation";
@@ -134,6 +134,18 @@ export default function BillsPage() {
       return await response.json();
     }
   });
+  
+  // Check bill reminders mutation
+  const checkRemindersMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/bills/check-reminders", {});
+    },
+    onSuccess: () => {
+      // No need to invalidate any queries as this only sends emails
+      // but doesn't change any data
+      alert("Bill reminder check initiated. You'll receive emails for any upcoming bills.");
+    }
+  });
 
   // Create bill mutation
   const createBillMutation = useMutation({
@@ -150,8 +162,8 @@ export default function BillsPage() {
 
   // Update bill mutation
   const updateBillMutation = useMutation({
-    mutationFn: async (data) => {
-      return await apiRequest("PUT", `/api/bills/${selectedBill.id}`, data);
+    mutationFn: async ({id, data}) => {
+      return await apiRequest("PUT", `/api/bills/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
@@ -176,14 +188,22 @@ export default function BillsPage() {
   // Mark bill as paid mutation
   const markAsPaidMutation = useMutation({
     mutationFn: async (bill) => {
-      return await apiRequest("PUT", `/api/bills/${bill._id}`, { 
-        ...bill, 
-        isPaid: true 
-      });
+      return await apiRequest("POST", `/api/bills/${bill._id}/mark-paid`, {});
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/upcoming"] });
+      
+      // Show information about created transaction if available
+      if (data?.transaction) {
+        console.log('Bill payment created transaction:', data.transaction);
+      }
+      
+      // Show information about next occurrence if available for recurring bills
+      if (data?.nextOccurrence) {
+        console.log('Created next bill occurrence due on:', 
+          new Date(data.nextOccurrence.dueDate).toLocaleDateString());
+      }
     }
   });
 
@@ -197,7 +217,9 @@ export default function BillsPage() {
     };
 
     if (selectedBill) {
-      updateBillMutation.mutate(processedData);
+      updateBillMutation.mutate({
+        id: selectedBill._id,
+        data: processedData});
     } else {
       createBillMutation.mutate(processedData);
     }
@@ -251,8 +273,43 @@ export default function BillsPage() {
     return isAfter(dueDateObj, today) && isAfter(threshold, dueDateObj);
   };
 
-  // Filter bills based on active tab
-  const filteredBills = bills?.filter(bill => {
+  // Combine bills and upcoming bills, including recurring instances with same ID but different due dates
+  const combinedBills = React.useMemo(() => {
+    if (!bills) return [];
+    
+    // Start with all regular bills
+    const allBills = [...bills];
+    
+    // Add upcoming recurring bills if available
+    if (upcomingBills) {
+      // Create a map to track existing bills by ID and due date
+      const existingBillsMap = new Map();
+      
+      bills.forEach(bill => {
+        // Use both ID and due date as a unique key
+        const key = `${bill._id}-${new Date(bill.dueDate).getTime()}`;
+        existingBillsMap.set(key, true);
+      });
+      
+      // Add any upcoming bills that aren't already in the list based on both ID and due date
+      upcomingBills.forEach(upcomingBill => {
+        const upcomingKey = `${upcomingBill._id}-${new Date(upcomingBill.dueDate).getTime()}`;
+        
+        if (!existingBillsMap.has(upcomingKey)) {
+          // Mark these as special recurring occurrences
+          allBills.push({
+            ...upcomingBill,
+            isRecurringOccurrence: true
+          });
+        }
+      });
+    }
+    
+    return allBills;
+  }, [bills, upcomingBills]);
+  
+  // Filter combined bills based on active tab
+  const filteredBills = combinedBills.filter(bill => {
     if (activeTab === "upcoming") return !bill.isPaid;
     if (activeTab === "paid") return bill.isPaid;
     if (activeTab === "autopay") return bill.autoPayEnabled;
@@ -277,16 +334,31 @@ export default function BillsPage() {
                 Track your recurring bills and never miss a payment
               </p>
             </div>
-            <Button onClick={openNewBillDialog} className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4" /> Add Bill
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => checkRemindersMutation.mutate()} 
+                variant="outline"
+                disabled={checkRemindersMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {checkRemindersMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CalendarCheck className="h-4 w-4" />
+                )}
+                Send Reminders
+              </Button>
+              <Button onClick={openNewBillDialog} className="flex items-center gap-2">
+                <PlusCircle className="h-4 w-4" /> Add Bill
+              </Button>
+            </div>
           </div>
           
-          {upcomingLoading ? (
+          {(billsLoading || upcomingLoading) ? (
             <div className="flex justify-center items-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : upcomingBills && upcomingBills.length > 0 ? (
+          ) : combinedBills.length > 0 ? (
             <Card className="mb-6">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
@@ -294,13 +366,15 @@ export default function BillsPage() {
                   Upcoming Bills
                 </CardTitle>
                 <CardDescription>
-                  Bills due in the next 14 days
+                  Bills due soon
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {upcomingBills.map(bill => (
-                    <div key={bill._id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                  {combinedBills
+                    .filter(bill => !bill.isPaid && (isDueSoon(bill.dueDate) || isOverdue(bill.dueDate)))
+                    .map(bill => (
+                    <div key={`${bill._id}-${new Date(bill.dueDate).getTime()}`} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-10 rounded-full ${
                           isOverdue(bill.dueDate) ? "bg-red-500" : 
@@ -308,9 +382,31 @@ export default function BillsPage() {
                           "bg-green-500"
                         }`} />
                         <div>
-                          <h4 className="font-medium">{bill.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{bill.name}</h4>
+                            {bill.isRecurringOccurrence && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full">
+                                Next Occurrence
+                              </span>
+                            )}
+                            {bill.isRecurring && !bill.isRecurringOccurrence && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                                Recurring
+                              </span>
+                            )}
+                            {bill.recurringPeriod && bill.recurringPeriod !== 'none' && !bill.isRecurring && !bill.isRecurringOccurrence && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                                {bill.recurringPeriod}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-neutral-500">
                             Due: {format(new Date(bill.dueDate), "MMM dd, yyyy")}
+                            {bill.isRecurring && bill.originalDueDate && (
+                              <span className="text-xs text-blue-600 ml-2">
+                                (next occurrence)
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -383,7 +479,7 @@ export default function BillsPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-neutral-200">
                       {filteredBills.map(bill => (
-                        <tr key={bill._id} className="hover:bg-neutral-50">
+                        <tr key={`${bill._id}-${new Date(bill.dueDate).getTime()}`} className="hover:bg-neutral-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500">
@@ -417,28 +513,37 @@ export default function BillsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {bill.isPaid ? (
-                              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                Paid
-                              </span>
-                            ) : isOverdue(bill.dueDate) ? (
-                              <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
-                                Overdue
-                              </span>
-                            ) : isDueSoon(bill.dueDate) ? (
-                              <span className="px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-800">
-                                Due Soon
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                                Upcoming
-                              </span>
-                            )}
-                            {bill.autoPayEnabled && (
-                              <span className="ml-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                                Auto-pay
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1">
+                              {bill.isPaid ? (
+                                <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                                  Paid
+                                </span>
+                              ) : isOverdue(bill.dueDate) ? (
+                                <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                                  Overdue
+                                </span>
+                              ) : isDueSoon(bill.dueDate) ? (
+                                <span className="px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-800">
+                                  Due Soon
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                                  Upcoming
+                                </span>
+                              )}
+                              
+                              {bill.isRecurringOccurrence && (
+                                <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                                  Next Occurrence
+                                </span>
+                              )}
+                              
+                              {bill.autoPayEnabled && (
+                                <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                                  Auto-pay
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex gap-2">

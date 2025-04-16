@@ -52,7 +52,8 @@ import {
   TrendingDown,
   DollarSign,
   Search,
-  Clock
+  Clock,
+  HelpCircle
 } from "lucide-react";
 
 const adviceFormSchema = z.object({
@@ -247,9 +248,6 @@ export default function AiInsightsPage() {
           
           <Tabs defaultValue="insights" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
-              <TabsTrigger value="insights" className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" /> Insights
-              </TabsTrigger>
               <TabsTrigger value="predictions" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" /> Expense Predictions
               </TabsTrigger>
@@ -260,88 +258,6 @@ export default function AiInsightsPage() {
                 <CreditCard className="h-4 w-4" /> Financial Advice
               </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="insights">
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  <Lightbulb className="h-5 w-5 inline mr-2 text-primary" />
-                  AI-Generated Financial Insights
-                </h2>
-                
-                {insightsLoading ? (
-                  <div className="flex justify-center items-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : insights && insights.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {insights.map(insight => (
-                      <Card 
-                        key={insight.id} 
-                        className={`${insight.isRead ? "opacity-75" : ""} ${getInsightBackground(insight.severity)}`}
-                      >
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            {getInsightIcon(insight.type, insight.severity)}
-                            {insight.title}
-                          </CardTitle>
-                          <CardDescription className="flex items-center justify-between">
-                            <span>{format(new Date(insight.createdAt), "MMM dd, yyyy")}</span>
-                            {!insight.isRead && (
-                              <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                                New
-                              </span>
-                            )}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-neutral-700 mb-3">
-                            {insight.description}
-                          </p>
-                          {insight.actionUrl && insight.actionLabel && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-primary"
-                              onClick={() => {
-                                // Mark as read when action taken
-                                if (!insight.isRead) {
-                                  markInsightAsReadMutation.mutate(insight.id);
-                                }
-                                // In real app, navigate to action URL
-                              }}
-                            >
-                              {insight.actionLabel}
-                            </Button>
-                          )}
-                        </CardContent>
-                        {!insight.isRead && (
-                          <CardFooter className="bg-white/50 text-xs text-neutral-500 pt-1 pb-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-neutral-500 h-auto p-0 hover:text-primary hover:bg-transparent"
-                              onClick={() => markInsightAsReadMutation.mutate(insight.id)}
-                            >
-                              Mark as read
-                            </Button>
-                          </CardFooter>
-                        )}
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="text-center p-12">
-                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                      <Lightbulb className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2">No insights yet</h3>
-                    <p className="text-neutral-500 mb-4">
-                      As you use the app more, our AI will generate personalized financial insights for you.
-                    </p>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
             
             <TabsContent value="predictions">
               <div className="space-y-6">
@@ -489,8 +405,8 @@ export default function AiInsightsPage() {
                             Potential Savings: ${(suggestion.estimated_monthly_savings || suggestion.estimatedSaving || 0).toFixed(2)}/month
                           </CardTitle>
                           <CardDescription className="flex items-center gap-1">
-                            {getDifficultyIcon(suggestion.difficulty)}
-                            <span className="capitalize">{suggestion.difficulty} to implement</span>
+                            {getDifficultyIcon(suggestion.difficulty_level)}
+                            <span className="capitalize">{suggestion.difficulty_level} to implement</span>
                           </CardDescription>
                         </CardHeader>
                         <CardContent>

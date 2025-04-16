@@ -24,7 +24,7 @@ registerRoutes(app)
       setupVite(app, server)
         .then(() => {
           // Start the server after Vite is set up
-          const PORT = process.env.PORT || 5000;
+          const PORT = process.env.PORT || 3000;
           server.listen(PORT, () => {
             log(`serving on port ${PORT}`);
           });
@@ -38,7 +38,7 @@ registerRoutes(app)
       serveStatic(app);
       
       // Start the server
-      const PORT = process.env.PORT || 5000;
+      const PORT = process.env.PORT || 3000;
       server.listen(PORT, () => {
         log(`serving on port ${PORT}`);
       });

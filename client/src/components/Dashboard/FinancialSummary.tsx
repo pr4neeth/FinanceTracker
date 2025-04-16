@@ -17,6 +17,15 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
   // State to store total balance
   const [totalBalance, setTotalBalance] = useState(0);
   
+  // Get current date for previous month comparison
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+  
+  // Calculate previous month and year
+  const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+  
   // Query to fetch total balance from all accounts
   const { data: balanceData, isLoading: isBalanceLoading } = useQuery({
     queryKey: ["/api/accounts-total-balance"],
@@ -27,6 +36,18 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
     }
   });
   
+  // Query to fetch previous month's data for comparison
+  const { data: previousMonthData } = useQuery({
+    queryKey: ["/api/analytics/monthly-summary", previousYear, previousMonth],
+    queryFn: async () => {
+      const response = await fetch(`/api/analytics/monthly-summary?year=${previousYear}&month=${previousMonth}`);
+      if (!response.ok) throw new Error("Failed to fetch previous month summary");
+      return await response.json();
+    },
+    // Only fetch if we have current month data to compare with
+    enabled: !!data
+  });
+  
   // Update total balance when data is fetched
   useEffect(() => {
     if (balanceData) {
@@ -34,19 +55,10 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
     }
   }, [balanceData]);
   
-  // Function to calculate the percentage change (for demo purposes, use random values if no real data)
-  const getPercentageChange = (type: string) => {
-    // In a real app, this would calculate based on previous period data
-    // For now, just return random positive or negative values
-    const randomChange = (Math.random() * 10).toFixed(1);
-    
-    if (type === "income") {
-      return +randomChange;
-    } else if (type === "expenses") {
-      return Math.random() > 0.5 ? +randomChange : -randomChange;
-    } else {
-      return +randomChange;
-    }
+  // Calculate percentage changes between current and previous month
+  const calculatePercentageChange = (current: number, previous: number): number => {
+    if (!previous || previous === 0) return 0;
+    return ((current - previous) / previous) * 100;
   };
 
   // Default values when no data is available
@@ -57,11 +69,24 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
   // Use the actual total balance from accounts instead of calculating it
   const balance = totalBalance;
 
-  // Percentage changes
-  const incomeChange = getPercentageChange("income");
-  const expensesChange = getPercentageChange("expenses");
-  const savingsChange = getPercentageChange("savings");
-  const balanceChange = getPercentageChange("balance"); // Random for now, could be calculated from historical data
+  // Calculate real percentage changes if we have previous month data
+  const incomeChange = previousMonthData ? 
+    calculatePercentageChange(income, previousMonthData.income) : 
+    0;
+  
+  const expensesChange = previousMonthData ? 
+    calculatePercentageChange(expenses, previousMonthData.expenses) : 
+    0;
+  
+  const savingsChange = previousMonthData ? 
+    calculatePercentageChange(savings, previousMonthData.savings) : 
+    0;
+  
+  // For balance, we don't have historical data yet, so this would remain random
+  // In a real app, you would calculate this from historical balance data
+  const balanceChange = previousMonthData ? 
+    calculatePercentageChange(balance, balance * 0.95) : // Simplified demo - replace with real historical data
+    0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -80,14 +105,6 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
               </h2>
             )}
           </div>
-          {isLoading ? (
-            <Skeleton className="h-6 w-16" />
-          ) : (
-            <span className={`${balanceChange >= 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"} px-2 py-1 rounded text-xs font-medium flex items-center`}>
-              {balanceChange >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-              {balanceChange >= 0 ? "+" : ""}{balanceChange.toFixed(1)}%
-            </span>
-          )}
         </div>
         <p className="text-xs text-neutral-500">From all linked accounts</p>
       </Card>
@@ -107,16 +124,8 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
               </h2>
             )}
           </div>
-          {isLoading ? (
-            <Skeleton className="h-6 w-16" />
-          ) : (
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium flex items-center">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +{incomeChange}%
-            </span>
-          )}
         </div>
-        <p className="text-xs text-neutral-500">Compared to last month</p>
+        <p className="text-xs text-neutral-500">Income from Transactions</p>
       </Card>
       
       {/* Spending Card */}
@@ -134,44 +143,11 @@ export default function FinancialSummary({ data, isLoading = false }: FinancialS
               </h2>
             )}
           </div>
-          {isLoading ? (
-            <Skeleton className="h-6 w-16" />
-          ) : (
-            <span className={`${expensesChange < 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"} px-2 py-1 rounded text-xs font-medium flex items-center`}>
-              {expensesChange < 0 ? <TrendingDown className="h-3 w-3 mr-1" /> : <TrendingUp className="h-3 w-3 mr-1" />}
-              {expensesChange < 0 ? "" : "+"}{expensesChange}%
-            </span>
-          )}
         </div>
-        <p className="text-xs text-neutral-500">Compared to last month</p>
+        <p className="text-xs text-neutral-500">Expenses from Transactions</p>
       </Card>
       
       {/* Savings Card */}
-      <Card className="bg-white rounded-lg shadow p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <p className="text-sm text-neutral-500 flex items-center">
-              <PiggyBank className="h-4 w-4 mr-1 text-neutral-400" /> Total Savings
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32 mt-1" />
-            ) : (
-              <h2 className="text-2xl font-bold text-neutral-900">
-                ${savings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h2>
-            )}
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-6 w-16" />
-          ) : (
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium flex items-center">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +{savingsChange}%
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-neutral-500">Across all savings accounts</p>
-      </Card>
     </div>
   );
 }

@@ -68,7 +68,7 @@ SENDGRID_API_KEY=your_sendgrid_api_key
    npm run dev
    ```
 
-4. Open your browser and navigate to `http://localhost:5000`
+4. Open your browser and navigate to `http://localhost:3000`
 
 ## MongoDB Setup
 

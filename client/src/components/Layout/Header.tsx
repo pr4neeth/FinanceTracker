@@ -76,24 +76,6 @@ export default function Header({ toggleMobileMenu, username }: HeaderProps) {
       </div>
       
       <div className="flex items-center space-x-4">
-        <div className="relative">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative text-neutral-500 hover:text-neutral-700"
-            aria-label={`${notificationCount} unread notifications`}
-          >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <Badge 
-                className="absolute top-0 right-0 h-4 w-4 p-0 flex items-center justify-center bg-red-500 text-white border-0" 
-                variant="destructive"
-              >
-                {notificationCount}
-              </Badge>
-            )}
-          </Button>
-        </div>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

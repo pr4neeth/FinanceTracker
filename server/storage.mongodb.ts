@@ -302,8 +302,7 @@ export class MongoStorage implements IStorage {
   
   async getBudgetsByUserId(userId: string): Promise<BudgetDocument[]> {
     try {
-      return await Budget.find({ userId: new Types.ObjectId(userId) })
-        .populate('categoryId');
+      return await Budget.find({ userId: new Types.ObjectId(userId) });
     } catch (error) {
       console.error('Error getting budgets by user ID:', error);
       return [];

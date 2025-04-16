@@ -371,8 +371,6 @@ export class MongoStorage implements IStorage {
         date: { $gte: startDate, $lte: endDate }
       })
         .sort({ date: -1 })
-        .populate('categoryId')
-        .populate('accountId');
     } catch (error) {
       console.error('Error getting transactions by date range:', error);
       return [];
@@ -486,13 +484,147 @@ export class MongoStorage implements IStorage {
       const endDate = new Date();
       endDate.setDate(today.getDate() + days);
       
-      return await Bill.find({
+      
+      console.log(`Looking for upcoming bills due between ${today.toISOString()} and ${endDate.toISOString()}`);
+      
+      // First, get one-time bills or recurring bills with due dates in the future
+      const upcomingBills = await Bill.find({
         userId: new Types.ObjectId(userId),
         dueDate: { $gte: today, $lte: endDate },
         isPaid: false
       })
         .sort({ dueDate: 1 })
         .populate('categoryId');
+      
+      console.log(`Found ${upcomingBills.length} upcoming bills with future due dates`);
+      
+      // Next, get ALL recurring bills to check if we need to calculate next occurrences
+      const recurringBills = await Bill.find({
+        userId: new Types.ObjectId(userId),
+        recurringPeriod: { $nin: [null, 'none', 'once'] }, // Only get recurring bills
+      })
+        .populate('categoryId');
+      
+      console.log(`Found ${recurringBills.length} total recurring bills`);
+      
+      // Filter out recurring bills that are already in the upcoming list
+      const upcomingBillIds = upcomingBills.map(bill => bill._id.toString());
+      const additionalRecurringBills = recurringBills.filter(bill => 
+        !upcomingBillIds.includes(bill._id.toString())
+      );
+      
+      console.log(`Processing ${additionalRecurringBills.length} recurring bills for potential next occurrences`);
+      
+      // Process each recurring bill to check if its next occurrence is within range
+      const nextRecurringBills = [];
+      
+      for (const bill of additionalRecurringBills) {
+        console.log(`Processing recurring bill: "${bill.name}" with due date ${new Date(bill.dueDate).toISOString()}`);
+        
+        // Use originalStartDate if available, or fall back to dueDate
+        const startDate = bill.originalStartDate || bill.dueDate;
+        console.log(`Using reference date: ${new Date(startDate).toISOString()}`);
+        
+        // For already paid bills, we need to calculate when the NEXT occurrence will be
+        // For unpaid bills in the past, we need to find the next upcoming occurrence
+        let nextDueDate = new Date(bill.dueDate);
+        
+        // If the bill is paid OR the due date is in the past, calculate next occurrence
+        if (bill.isPaid || nextDueDate < today) {
+          console.log(`Bill is ${bill.isPaid ? 'paid' : 'unpaid but due date has passed'}, calculating next occurrence`);
+          
+          // Calculate based on recurring period
+          switch (bill.recurringPeriod.toLowerCase()) {
+            case 'monthly':
+              // For paid bills, advance one period from the due date
+              if (bill.isPaid) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+              } else {
+                // For unpaid past bills, find the next occurrence from today
+                while (nextDueDate < today) {
+                  nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+                }
+              }
+              break;
+              
+            case 'weekly':
+              // For paid bills, advance one period from the due date
+              if (bill.isPaid) {
+                nextDueDate.setDate(nextDueDate.getDate() + 7);
+              } else {
+                // For unpaid past bills, find the next occurrence from today
+                while (nextDueDate < today) {
+                  nextDueDate.setDate(nextDueDate.getDate() + 7);
+                }
+              }
+              break;
+              
+            case 'yearly':
+              // For paid bills, advance one period from the due date
+              if (bill.isPaid) {
+                nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+              } else {
+                // For unpaid past bills, find the next occurrence from today
+                while (nextDueDate < today) {
+                  nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+                }
+              }
+              break;
+              
+            case 'quarterly':
+              // For paid bills, advance one period from the due date
+              if (bill.isPaid) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+              } else {
+                // For unpaid past bills, find the next occurrence from today
+                while (nextDueDate < today) {
+                  nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+                }
+              }
+              break;
+              
+            default:
+              // Default to monthly
+              if (bill.isPaid) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+              } else {
+                while (nextDueDate < today) {
+                  nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+                }
+              }
+          }
+          
+          console.log(`Calculated next due date: ${nextDueDate.toISOString()}`);
+          
+          // Check if the next due date is within the specified range
+          if (nextDueDate <= endDate) {
+            console.log(`Next occurrence is within the requested time window`);
+            
+            // Create a copy of the bill with the updated next due date
+            const recurringBillCopy = bill.toObject();
+            recurringBillCopy.dueDate = nextDueDate;
+            recurringBillCopy.isRecurring = true; // Add flag to indicate this is a recurring occurrence
+            recurringBillCopy.isRecurringOccurence = true;
+            recurringBillCopy.originalDueDate = startDate; // Keep the original date for reference
+            recurringBillCopy.isPaid = false; // Ensure the next occurrence is not marked as paid
+            nextRecurringBills.push(recurringBillCopy);
+          } else {
+            console.log(`Next occurrence is outside the requested time window`);
+          }
+        } else {
+          console.log(`Bill is not paid and due date is in the future, no need to calculate next occurrence`);
+        }
+      }
+      
+      console.log(`Found ${nextRecurringBills.length} upcoming bill occurrences from recurring bills`);
+      
+      // Combine and sort all upcoming bills
+      const allUpcomingBills = [...upcomingBills, ...nextRecurringBills];
+      allUpcomingBills.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      
+      console.log(`Returning a total of ${allUpcomingBills.length} upcoming bills`);
+      
+      return allUpcomingBills;
     } catch (error) {
       console.error('Error getting upcoming bills:', error);
       return [];
@@ -643,7 +775,7 @@ export class MongoStorage implements IStorage {
       
       // Get all transactions for the user in the specified date range
       const transactions = await this.getTransactionsByDateRange(userId, startDate, endDate);
-      
+      console.log(transactions);
       // Calculate income and expenses
       let income = 0;
       let expenses = 0;
@@ -657,7 +789,7 @@ export class MongoStorage implements IStorage {
           
           // Track expenses by category
           if (transaction.categoryId) {
-            const categoryId = transaction.categoryId._id.toString();
+            const categoryId = transaction.categoryId._id;
             categoryExpenses[categoryId] = (categoryExpenses[categoryId] || 0) + transaction.amount;
           }
         }

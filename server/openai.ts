@@ -1,5 +1,7 @@
 import OpenAI from "openai";
+import dotenv from 'dotenv';
 
+dotenv.config();
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -16,7 +18,7 @@ export async function analyzeReceipt(base64Image: string): Promise<{
       messages: [
         {
           role: "system",
-          content: "You are a receipt analyzer. Extract the merchant name, date, total amount, and individual line items with their prices from the receipt image. Return the data as a JSON object with the following structure: { merchant: string, date: string, total: number, items: Array<{ name: string, price: number, category?: string }> }. For each item, try to categorize it into a general spending category such as 'groceries', 'dining', 'entertainment', etc."
+          content: "You are a receipt analyzer. Extract the merchant name, date, total amount, and individual line items with their prices from the receipt image. Return the data as a JSON object with the following structure: { merchant: string, date: string, total: number, category: string, items: Array<{ name: string, price: number, category?: string }> }. Try to categorize it into a general spending category such as 'Housing', 'Food & Dining', 'Transportation', 'Entertainment', 'Shopping', 'Utilities', 'Healthcare', 'Education', 'Personal Care', 'Travel', 'Gifts & Donations', 'Investments', 'Income', 'Taxes', 'Miscellaneous'"
         },
         {
           role: "user",
@@ -147,7 +149,7 @@ export async function suggestSavings(
       messages: [
         {
           role: "system",
-          content: "You are a financial advisor specializing in helping people save money. Analyze the user's transaction history and suggest specific ways they could save money. Return an array of suggestions with estimated monthly savings amount and difficulty level (easy, medium, hard) in JSON format."
+          content: "You are a financial advisor specializing in helping people save money. Analyze the user's transaction history and suggest specific ways they could save money. Return an array of suggestions with estimated monthly savings amount and difficulty level (easy, medium, hard). Return the data as a JSON object with the following structure: { suggestion: string, estimatedSaving: number, difficulty_level: string}."
         },
         {
           role: "user",

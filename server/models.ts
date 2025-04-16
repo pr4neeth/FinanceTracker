@@ -52,7 +52,7 @@ export interface ITransaction extends Document {
   date: Date;
   amount: number;
   userId: mongoose.Types.ObjectId;
-  categoryId: mongoose.Types.ObjectId | null;
+  categoryId: string | null;
   accountId: mongoose.Types.ObjectId | null;
   isIncome: boolean;
   notes: string;
@@ -62,7 +62,7 @@ export interface ITransaction extends Document {
 }
 
 export interface IBudget extends Document {
-  categoryId: mongoose.Types.ObjectId;
+  categoryId: string;
   userId: mongoose.Types.ObjectId;
   amount: number;
   period: string;
@@ -77,9 +77,10 @@ export interface IBill extends Document {
   name: string;
   amount: number;
   dueDate: Date;
+  originalStartDate?: Date;
   recurringPeriod: string;
   userId: mongoose.Types.ObjectId;
-  categoryId: mongoose.Types.ObjectId | null;
+  categoryId: string | null;
   isPaid: boolean;
   notes: string;
   reminderDays: number;
@@ -169,7 +170,7 @@ const TransactionSchema = new Schema<ITransaction>(
     date: { type: Date, required: true },
     amount: { type: Number, required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    categoryId: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
+    categoryId: { type: String, default: null },
     accountId: { type: Schema.Types.ObjectId, ref: 'Account', default: null },
     isIncome: { type: Boolean, default: false },
     notes: { type: String, default: '' },
@@ -180,7 +181,7 @@ const TransactionSchema = new Schema<ITransaction>(
 
 const BudgetSchema = new Schema<IBudget>(
   {
-    categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
+    categoryId: { type: String, required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true },
     period: { type: String, required: true }, // monthly, quarterly, yearly
@@ -196,9 +197,10 @@ const BillSchema = new Schema<IBill>(
     name: { type: String, required: true },
     amount: { type: Number, required: true },
     dueDate: { type: Date, required: true },
+    originalStartDate: { type: Date },
     recurringPeriod: { type: String, required: true }, // monthly, quarterly, yearly, once
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    categoryId: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
+    categoryId: { type: String, default: null },
     isPaid: { type: Boolean, default: false },
     notes: { type: String, default: '' },
     reminderDays: { type: Number, default: 3 }

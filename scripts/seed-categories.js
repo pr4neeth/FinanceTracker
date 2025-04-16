@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
 const { Schema } = mongoose;
+
 
 // Check for MONGODB_URI environment variable
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/financeapp';

@@ -158,6 +158,7 @@ export default function ReceiptScannerModal({ isOpen, onClose }: ReceiptScannerM
         date: receiptData.date ? new Date(receiptData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         isIncome: false,
         notes: `Receipt scanned: ${receiptData.items?.map((item: any) => `${item.name} ($${item.price})`).join(', ')}`,
+        categoryId: receiptData.category
       };
       
       await apiRequest('POST', '/api/transactions', transaction);

@@ -37,7 +37,6 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
         { name: "transactions", label: "Transactions", icon: <ArrowRightLeft className="w-5 h-5 mr-2" />, path: "/transactions" },
         { name: "budgets", label: "Budgets", icon: <Wallet className="w-5 h-5 mr-2" />, path: "/budgets" },
         { name: "bills", label: "Bills & Subscriptions", icon: <FileText className="w-5 h-5 mr-2" />, path: "/bills" },
-        { name: "goals", label: "Financial Goals", icon: <Target className="w-5 h-5 mr-2" />, path: "/goals" },
       ]
     },
     {
@@ -132,16 +131,7 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
           </button>
         </div>
       )}
-      
-      <div className="px-4 mt-auto mb-4">
-        <div className="bg-primary/10 p-4 rounded-lg">
-          <h3 className="font-medium text-primary mb-2">Need Help?</h3>
-          <p className="text-sm text-neutral-600 mb-2">Have questions or need assistance with your finances?</p>
-          <Button variant="link" className="text-sm text-primary font-medium p-0 h-auto">
-            Contact Support
-          </Button>
-        </div>
-      </div>
+    
     </aside>
   );
 }
