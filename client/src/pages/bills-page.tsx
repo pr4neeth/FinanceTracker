@@ -155,8 +155,7 @@ export default function BillsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/upcoming"] });
-      setIsDialogOpen(false);
-      form.reset();
+      window.location.reload();
     }
   });
 
@@ -168,8 +167,7 @@ export default function BillsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/upcoming"] });
-      setIsDialogOpen(false);
-      setSelectedBill(null);
+      window.location.reload();
     }
   });
 
@@ -181,7 +179,7 @@ export default function BillsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bills/upcoming"] });
-      setSelectedBill(null);
+      window.location.reload();
     }
   });
 
@@ -204,6 +202,7 @@ export default function BillsPage() {
         console.log('Created next bill occurrence due on:', 
           new Date(data.nextOccurrence.dueDate).toLocaleDateString());
       }
+      window.location.reload();
     }
   });
 

@@ -25,7 +25,7 @@ export default function SimpleHomePage() {
           <span className="text-sm font-medium">
             Welcome, {user?.username || 'User'}
           </span>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button variant="outline" onClick={handleLogout} data-testid="logout-button">
             Logout
           </Button>
         </div>

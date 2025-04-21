@@ -115,40 +115,41 @@ export default function HomePage() {
         
         <main className="flex-1 overflow-y-auto p-4 bg-neutral-50">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-neutral-900">Financial Dashboard</h1>
+            <h1 className="text-2xl font-bold text-neutral-900" data-testid="dashboard-title">Financial Dashboard</h1>
             <p className="text-neutral-600">
               Welcome back, {user?.fullName || user?.username || "User"}! Here's your financial overview.
             </p>
           </div>
           
-          <BillReminders />
+          <BillReminders data-testid="dashboard-card" />
           
-          <FinancialSummary 
-            data={monthlySummary} 
-            isLoading={summaryLoading} 
-          />
+          <div data-testid="dashboard-card"> 
+            <FinancialSummary 
+              data={monthlySummary} 
+              isLoading={summaryLoading} 
+            />
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <MonthlySpending 
               className="lg:col-span-2"
               year={currentYear}
               month={currentMonth} 
+              data-testid="dashboard-card"
             />
             <BudgetOverview 
               budgets={budgets || []} 
               isLoading={budgetsLoading} 
+              data-testid="dashboard-card"
             />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <AiInsights 
-              insights={insights || []} 
-              isLoading={insightsLoading} 
-            />
             <RecentTransactions 
               transactions={recentTransactions || []} 
               isLoading={transactionsLoading} 
               className="lg:col-span-2"
+              data-testid="dashboard-card"
             />
           </div>
         </main>

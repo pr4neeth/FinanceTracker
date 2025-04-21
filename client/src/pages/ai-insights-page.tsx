@@ -64,7 +64,7 @@ const adviceFormSchema = z.object({
 export default function AiInsightsPage() {
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("insights");
+  const [activeTab, setActiveTab] = useState("predictions");
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -238,9 +238,9 @@ export default function AiInsightsPage() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar activePage="ai-insights" />
         
-        <main className="flex-1 overflow-y-auto p-4 bg-neutral-50">
+        <main className="flex-1 overflow-y-auto p-4 bg-neutral-50" data-testid="ai-insights">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-neutral-900">AI Financial Intelligence</h1>
+            <h1 className="text-2xl font-bold text-neutral-900" data-testid="page-title">AI Financial Intelligence</h1>
             <p className="text-neutral-600">
               AI-powered insights, predictions, and advice to improve your finances
             </p>
@@ -299,12 +299,6 @@ export default function AiInsightsPage() {
                               <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                 Predicted Amount
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Trend
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                Confidence
-                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-neutral-200">
@@ -313,7 +307,7 @@ export default function AiInsightsPage() {
                               const currentAmount = (prediction.predictedAmount * (0.8 + Math.random() * 0.4)).toFixed(2);
                               
                               return (
-                                <tr key={index} className="hover:bg-neutral-50">
+                                <tr key={index} className="hover:bg-neutral-50" data-testid="insight-card">
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-neutral-900">
                                       {prediction.category}
@@ -327,29 +321,6 @@ export default function AiInsightsPage() {
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-neutral-900">
                                       ${prediction.predictedAmount?.toFixed(2) || '0.00'}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      {getPredictionTrendIcon(prediction.predictedAmount, parseFloat(currentAmount))}
-                                      <span className="text-sm ml-1">
-                                        {prediction.predictedAmount && currentAmount && prediction.predictedAmount > parseFloat(currentAmount) * 1.1
-                                          ? `+${(((prediction.predictedAmount / parseFloat(currentAmount)) - 1) * 100).toFixed(0)}%`
-                                          : prediction.predictedAmount && currentAmount && prediction.predictedAmount < parseFloat(currentAmount) * 0.9
-                                          ? `-${(((parseFloat(currentAmount) / prediction.predictedAmount) - 1) * 100).toFixed(0)}%`
-                                          : "Stable"}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="w-full bg-neutral-200 rounded-full h-2">
-                                      <div 
-                                        className="bg-primary h-2 rounded-full" 
-                                        style={{ width: `${prediction.confidence ? prediction.confidence * 100 : 0}%` }}
-                                      ></div>
-                                    </div>
-                                    <div className="text-xs text-neutral-500 mt-1">
-                                      {(prediction.confidence ? (prediction.confidence * 100).toFixed(0) : '0')}% confident
                                     </div>
                                   </td>
                                 </tr>
@@ -482,6 +453,7 @@ export default function AiInsightsPage() {
                                 <Textarea
                                   placeholder="What would you like to know about this topic?"
                                   className="min-h-24"
+                                  data-testid="ai-question-input"
                                   {...field}
                                 />
                               </FormControl>
@@ -493,6 +465,7 @@ export default function AiInsightsPage() {
                         <Button 
                           type="submit" 
                           className="w-full"
+                          data-testid="ai-question-submit"
                           disabled={getAdviceMutation.isPending}
                         >
                           {getAdviceMutation.isPending ? (

@@ -29,10 +29,14 @@ async function createDriver() {
 /**
  * Simulates user login on the AuthPage using test credentials.
  */
-async function login(driver) {
+/**
+ * Simulates user login on the AuthPage using test credentials.
+ * Accepts optional selector to wait for after login (e.g., dashboard or transactions).
+ */
+async function login(driver, postLoginSelector = '[data-testid="dashboard-title"]') {
   await driver.get(`${testConfig.baseUrl}/auth`);
 
-  // Ensure login tab is selected
+  // Select the login tab
   const tabs = await driver.findElements(By.css('[role="tab"]'));
   for (const tab of tabs) {
     const text = await tab.getText();
@@ -42,22 +46,28 @@ async function login(driver) {
     }
   }
 
-  // Fill in username and password
-  await driver.wait(until.elementLocated(By.css('input')), 10000);
-  const inputs = await driver.findElements(By.css('input'));
-  for (const input of inputs) {
-    const placeholder = await input.getAttribute('placeholder');
-    if (placeholder?.toLowerCase().includes('johndoe')) {
-      await input.sendKeys(testConfig.testUser.username);
-    } else if (placeholder?.includes('•')) {
-      await input.sendKeys(testConfig.testUser.password);
-    }
-  }
+  // Fill in credentials
+  await waitAndSendKeys(driver, By.name("username"), testConfig.testUser.username);
+  await waitAndSendKeys(driver, By.name("password"), testConfig.testUser.password);
 
-  // Click submit and wait for redirect
+  // Submit login
   await waitAndClick(driver, By.css('button[type="submit"]'));
-  await driver.wait(until.urlIs(`${testConfig.baseUrl}/`), 10000);
+
+  try {
+    console.log('🔄 Waiting for redirect and page load...');
+    await driver.wait(until.urlIs(`${testConfig.baseUrl}/`), 10000);
+
+    if (postLoginSelector) {
+      await driver.wait(until.elementLocated(By.css(postLoginSelector)), 10000);
+    }
+
+    console.log('Login successful');
+  } catch (error) {
+    console.error('Login failed or post-login element not found.');
+    throw error;
+  }
 }
+
 
 /**
  * Wait for an element to be located and visible before clicking.

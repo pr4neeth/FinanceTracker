@@ -29,7 +29,6 @@ describe('Authentication Tests', () => {
     await driver.get(`${testConfig.baseUrl}/auth`);
     await takeScreenshot(driver, 'auth-page');
 
-    // Wait for heading and normalize whitespace
     await driver.wait(until.elementLocated(By.css('h1')), 15000);
     const heading = await driver.findElement(By.css('h1'));
     const text = await heading.getText();

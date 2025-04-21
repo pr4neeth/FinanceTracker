@@ -104,6 +104,7 @@ export default function Sidebar({ activePage, isMobile = false, onClose }: Sideb
                         ? "text-primary bg-primary/10" 
                         : "text-neutral-700 hover:bg-neutral-100"
                     )}
+                    data-testid={`${item.name}-link`}
                   >
                     {item.icon}
                     {item.label}

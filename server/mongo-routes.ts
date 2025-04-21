@@ -471,22 +471,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const budgets = await storage.getBudgetsByUserId(req.user._id.toString());
       const transactions = await storage.getTransactionsByUserId(req.user._id.toString());
+
+      // Get the current month's start and end dates
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            
+      console.log(`Calculating budget spending for period: ${startOfMonth.toISOString()} - ${endOfMonth.toISOString()}`);
       
       // Calculate spending per category
       const categorySpending = new Map<string, number>();
       
       for (const transaction of transactions) {
-        if (transaction.categoryId && !transaction.isIncome) {
-          const categoryId = transaction.categoryId.toString();
-          const currentAmount = categorySpending.get(categoryId) || 0;
-          categorySpending.set(categoryId, currentAmount + transaction.amount);
+        const transactionDate = new Date(transaction.date);
+        
+        // Only include transactions from the current month
+        if (transaction.categoryId && 
+            !transaction.isIncome && 
+            transactionDate >= startOfMonth && 
+            transactionDate <= endOfMonth) {
+              const categoryId = transaction.categoryId.toString();
+              const currentAmount = categorySpending.get(categoryId) || 0;
+              categorySpending.set(categoryId, currentAmount + transaction.amount);
         }
       }
       
       // Format the result
       const result = Array.from(categorySpending.entries()).map(([categoryId, spent]) => ({
         categoryId,
-        spent
+        spent,
+        period: `${now.getFullYear()}-${now.getMonth() + 1}`
       }));
       
       res.json(result);

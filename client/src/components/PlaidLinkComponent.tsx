@@ -56,7 +56,7 @@ const PlaidLinkComponent: React.FC<PlaidLinkComponentProps> = ({
                   onSuccess(data);
                 }
                 
-                setIsLoading(false);
+                window.location.reload();
               } catch (error) {
                 console.error('Error exchanging public token:', error);
                 toast({

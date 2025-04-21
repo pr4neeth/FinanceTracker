@@ -27,25 +27,12 @@ describe('AI Insights Page Tests', () => {
     }
   }, 30000);
 
-  // Teardown - runs after all tests
-  afterAll(async () => {
-    try {
-      await waitAndClick(driver, By.css('[data-testid="logout-button"]'));
-    } catch (error) {
-      console.warn("Couldn't find logout button");
-    }
-
-    if (driver) {
-      await driver.quit();
-    }
-  });
-
   test('should navigate to AI Insights page', async () => {
     await waitAndClick(driver, By.css('[data-testid="ai-insights-link"]'));
     await waitForNetworkIdle(driver);
 
-    const pageTitle = await getElementText(driver, By.css('h1, h2, .page-title'));
-    expect(pageTitle.toLowerCase()).toContain('insights');
+    const pageTitle = await getElementText(driver, By.css('[data-testid="page-title"]'));
+    expect(pageTitle.toLowerCase()).toContain('ai financial intelligence');
 
     await takeScreenshot(driver, 'ai-insights-page');
   }, 30000);

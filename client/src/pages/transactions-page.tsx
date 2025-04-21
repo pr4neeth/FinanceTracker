@@ -173,8 +173,8 @@ export default function TransactionsPage() {
         <Sidebar activePage="transactions" />
         
         <main className="flex-1 overflow-y-auto p-4 bg-neutral-50">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
+          <div className="mb-6" data-testid="transactions-page">
+            <h1 className="text-2xl font-bold text-neutral-900" data-testid="page-title">Transactions</h1>
             <p className="text-neutral-600">
               View and manage your financial transactions
             </p>
@@ -226,9 +226,6 @@ export default function TransactionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" className="gap-2 w-full md:w-auto">
-                  <Filter className="h-4 w-4" /> More Filters
-                </Button>
                 <Button onClick={toggleAddTransactionMenu} className="gap-2 w-full md:w-auto">
                   <Plus className="h-4 w-4" /> Add Transaction
                 </Button>
@@ -250,9 +247,9 @@ export default function TransactionsPage() {
                 </div>
               ) : filteredTransactions.length > 0 ? (
                 <div className="rounded-md border">
-                  <Table>
+                  <Table data-testid="transactions-table">
                     <TableHeader>
-                      <TableRow>
+                      <TableRow data-testid="transaction-row">
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Date</TableHead>

@@ -22,6 +22,17 @@ export async function checkBudgetAlerts(
       console.log("Budget alert check: Skipping - transaction is income or has no category");
       return null;
     }
+    
+    // Skip if transaction is not in the current month (prevents triggering alerts for old transactions)
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+    
+    const transactionDate = new Date(transaction.date);
+    if (transactionDate < startOfMonth || transactionDate > endOfMonth) {
+      console.log(`Budget alert check: Skipping - transaction from ${transactionDate.toISOString()} not in current month period`);
+      return null;
+    }
 
     const categoryId = transaction.categoryId.toString();
     const userId = transaction.userId.toString();
@@ -31,11 +42,7 @@ export async function checkBudgetAlerts(
     // Get all user's budgets
     const budgets = await storage.getBudgetsByUserId(userId);
     
-    // Get all user's transactions for the current month
-    const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
-    
+    // Get all user's transactions for the current month only
     const transactions = await storage.getTransactionsByDateRange(
       userId, 
       startOfMonth, 

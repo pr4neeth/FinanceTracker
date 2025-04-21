@@ -178,8 +178,9 @@ export default function AccountsPage() {
         title: "Account created successfully",
         description: "Your new account has been added.",
       });
-      setAccountFormOpen(false);
-      form.reset();
+      window.location.reload();
+      // setAccountFormOpen(false);
+      // form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -227,6 +228,7 @@ export default function AccountsPage() {
         title: "Account deleted",
         description: "The account has been removed successfully.",
       });
+      window.location.reload();
     },
     onError: (error: Error) => {
       toast({
@@ -392,96 +394,6 @@ export default function AccountsPage() {
               <CardContent className="pt-0">
                 {/* Fetch Plaid accounts and render transactions */}
                 <PlaidAccountsWithTransactions />
-              </CardContent>
-            </Card>
-
-            <Card className="mb-8">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Manual Accounts</CardTitle>
-                    <CardDescription>
-                      Manually tracked accounts
-                    </CardDescription>
-                  </div>
-                  <Button onClick={openAccountForm} className="gap-2">
-                    <Plus className="h-4 w-4" /> Add Account
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {accountsLoading ? (
-                  <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : isError ? (
-                  <div className="flex justify-center py-8 text-center text-muted-foreground">
-                    <p>Unable to load accounts. Please try again later.</p>
-                  </div>
-                ) : accounts && accounts.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {accounts.map((account: any) => (
-                      <Card key={account._id} className="relative">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className={`p-2 rounded-full ${account.type === 'credit' ? 'bg-rose-100 text-rose-500' : 'bg-blue-100 text-blue-500'}`}>
-                                {getAccountIcon(account.type)}
-                              </div>
-                              <CardTitle className="text-lg">
-                                {account.name}
-                              </CardTitle>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => editAccount(account)}
-                              >
-                                <PencilLine className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => confirmDeleteAccount(account)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                          <CardDescription>
-                            {accountTypes.find(t => t.value === account.type)?.label}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="mt-2">
-                            <p className={`text-xl font-semibold ${account.type === 'credit' && account.balance < 0 ? 'text-destructive' : 'text-primary'}`}>
-                              {formatCurrency(account.balance, account.currency)}
-                            </p>
-                            {account.description && (
-                              <p className="text-sm text-muted-foreground mt-2">
-                                {account.description}
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="bg-muted p-4 rounded-full mb-4">
-                      <CreditCard className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-xl font-medium mb-2">No accounts yet</h3>
-                    <p className="text-muted-foreground text-center max-w-md mb-6">
-                      Add your bank accounts, credit cards, and other financial accounts to track your finances more effectively.
-                    </p>
-                    <Button onClick={openAccountForm} className="gap-2">
-                      <Plus className="h-4 w-4" /> Add Your First Account
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>

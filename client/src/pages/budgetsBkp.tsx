@@ -109,24 +109,34 @@ export default function BudgetsPage() {
     }
   });
 
+  // Create budget mutation
   const createBudgetMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/budgets", data);
-      return await response.json();
+      return response.json();
     },
-    onMutate: async (newBudgetData) => {
+    onMutate: async (newBudgetData: any) => {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/budgets"] });
       
       // Snapshot the previous value
       const previousBudgets = queryClient.getQueryData(["/api/budgets"]);
       
+      // Create a temporary ID
+      const tempId = `temp-${Date.now()}`;
+      
       // Optimistically update the UI
       const optimisticBudget = {
-        _id: Date.now().toString(), // Temporary ID until we get the real one
-        ...newBudgetData,
+        _id: tempId,
+        userId: "temp-user-id",
+        categoryId: newBudgetData.categoryId,
+        amount: Number(newBudgetData.amount),
+        period: newBudgetData.period,
         startDate: newBudgetData.startDate.toISOString(),
-        endDate: newBudgetData.endDate ? newBudgetData.endDate.toISOString() : undefined
+        endDate: newBudgetData.endDate ? newBudgetData.endDate.toISOString() : undefined,
+        alertThreshold: Number(newBudgetData.alertThreshold),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       queryClient.setQueryData(["/api/budgets"], (old: any[] = []) => {
@@ -145,21 +155,20 @@ export default function BudgetsPage() {
       queryClient.setQueryData(["/api/budgets"], context?.previousBudgets);
       console.error("Error creating budget:", err);
     },
-    onSuccess: (newBudget) => {
+    onSuccess: () => {
       // Refetch to ensure we have the correct data
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets/spending"] });
-      window.location.reload();
     }
   });
 
   // Update budget mutation
   const updateBudgetMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const response = await apiRequest("PUT", `/api/budgets/${id}`, data);
-      return await response.json();
+      return response.json();
     },
-    onMutate: async ({ id, data }) => {
+    onMutate: async ({ id, data }: { id: string; data: any }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/budgets"] });
       
@@ -172,9 +181,13 @@ export default function BudgetsPage() {
           if (budget._id === id) {
             return { 
               ...budget, 
-              ...data,
+              categoryId: data.categoryId,
+              amount: Number(data.amount),
+              period: data.period,
               startDate: data.startDate.toISOString(),
-              endDate: data.endDate ? data.endDate.toISOString() : undefined
+              endDate: data.endDate ? data.endDate.toISOString() : undefined,
+              alertThreshold: Number(data.alertThreshold),
+              updatedAt: new Date().toISOString()
             };
           }
           return budget;
@@ -196,16 +209,15 @@ export default function BudgetsPage() {
       // Refetch to ensure we have the correct data
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets/spending"] });
-      window.location.reload();
     }
   });
 
   // Delete budget mutation
   const deleteBudgetMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/budgets/${id}`);
     },
-    onMutate: async (id) => {
+    onMutate: async (id: string) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/budgets"] });
       
@@ -230,24 +242,30 @@ export default function BudgetsPage() {
       // Refetch to ensure we have the correct data
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets/spending"] });
-      window.location.reload();
     }
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = (data: any) => {
     // Process data to handle "none" value for categoryId
     const processedData = {
       ...data,
       categoryId: data.categoryId && data.categoryId !== "none" ? data.categoryId : undefined
     };
     
+    // Convert string values to numbers
+    const normalizedData = {
+      ...processedData,
+      amount: Number(processedData.amount),
+      alertThreshold: Number(processedData.alertThreshold)
+    };
+    
     if (selectedBudget) {
       updateBudgetMutation.mutate({
         id: selectedBudget._id,
-        data: processedData
+        data: normalizedData
       });
     } else {
-      createBudgetMutation.mutate(processedData);
+      createBudgetMutation.mutate(normalizedData);
     }
   };
 
@@ -406,11 +424,12 @@ export default function BudgetsPage() {
                             <span>Spent: ${(budget.amount * progress / 100).toFixed(2)}</span>
                             <span>{progress}%</span>
                           </div>
-                          <Progress 
-                            value={progress > 100 ? 100 : progress} 
-                            className="h-2" 
-                            indicatorClassName={getBudgetStatusColor(progress)}
-                          />
+                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div 
+                              className={`${getBudgetStatusColor(progress)} h-full`}
+                              style={{ width: `${progress > 100 ? 100 : progress}%` }}
+                            />
+                          </div>
                         </div>
                         
                         <div className="text-sm text-neutral-500 pt-2">

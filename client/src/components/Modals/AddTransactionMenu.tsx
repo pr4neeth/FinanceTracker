@@ -47,14 +47,6 @@ export default function AddTransactionMenu({ isOpen, onToggle, onClose, onScanRe
             <Plus className="text-primary mr-3 h-5 w-5" />
             Add Manually
           </button>
-          
-          <button
-            onClick={() => handleLinkClick(() => {})} // Navigate to link account page
-            className="w-full px-4 py-3 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50 flex items-center transition-colors"
-          >
-            <Link2 className="text-primary mr-3 h-5 w-5" />
-            Link Account
-          </button>
         </div>
       )}
     </div>
