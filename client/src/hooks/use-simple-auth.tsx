@@ -1,6 +1,6 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from "react";
 import { User as SelectUser, InsertUser } from "@shared/schema";
-import { apiRequest } from "../lib/queryClient";
+import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,7 @@ type AuthContextType = {
   login: (credentials: LoginData) => Promise<SelectUser>;
   logout: () => Promise<void>;
   register: (data: RegisterData) => Promise<SelectUser>;
+  refreshUser: () => Promise<SelectUser | null>; // Add refresh function
 };
 
 type LoginData = {
@@ -49,6 +50,9 @@ const defaultContext: AuthContextType = {
   register: async () => {
     throw new Error("AuthContext not initialized");
   },
+  refreshUser: async () => {
+    throw new Error("AuthContext not initialized");
+  },
 };
 
 // Create the auth context
@@ -60,33 +64,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SelectUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Function to completely reset user state and clear all caches
+  const resetUserState = useCallback(() => {
+    setUser(null);
+    queryClient.clear(); // Completely clear all query caches
+  }, []);
+
+  // Create a reusable fetchUser function 
+  const refreshUser = useCallback(async (): Promise<SelectUser | null> => {
+    try {
+      setIsLoading(true);
+      try {
+        const res = await apiRequest("GET", "/api/user");
+        if (res.status === 401) {
+          setUser(null);
+          return null;
+        }
+        
+        const userData = await res.json();
+        setUser(userData);
+        return userData;
+      } catch (fetchError) {
+        // If it's a 401 error, apiRequest will throw an error
+        if (fetchError instanceof Error && fetchError.message.includes("401")) {
+          setUser(null);
+          return null;
+        }
+        throw fetchError;
+      }
+    } catch (err) {
+      console.error("Error refreshing user:", err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Fetch the user on mount
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/user");
-        if (response.status === 401) {
-          setUser(null);
-          return;
-        }
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        } else {
-          throw new Error("Failed to fetch user");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, []);
+    refreshUser();
+  }, [refreshUser]);
 
   // Define login function
   const login = async (credentials: LoginData): Promise<SelectUser> => {
@@ -95,6 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/login", credentials);
       const userData = await res.json();
       setUser(userData);
+      
+      // Clear all query caches to ensure fresh data for the new user
+      queryClient.removeQueries();
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${userData.username}!`,
@@ -118,7 +141,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       await apiRequest("POST", "/api/logout");
-      setUser(null);
+      
+      // Use the reset function to fully clear all state
+      resetUserState();
+      
       toast({
         title: "Logout successful",
         description: "You have been logged out.",
@@ -144,9 +170,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", userData);
       const newUser = await res.json();
       setUser(newUser);
+      
+      // Clear all query caches to ensure fresh data for the new user
+      queryClient.removeQueries();
+      
       toast({
         title: "Registration successful",
-        description: `Welcome, ${newUser.username}!`,
+        description: `Login, ${newUser.username}!`,
       });
       return newUser;
     } catch (err) {
@@ -172,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         register,
+        refreshUser,
       }}
     >
       {children}

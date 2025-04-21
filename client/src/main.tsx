@@ -35,8 +35,15 @@ function Providers({ children }: { children: React.ReactNode }) {
 
 // Create a wrapper for protected routes that checks authentication
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
   const [, navigate] = useLocation();
+
+  // Add explicit refresh on mount to ensure we have the latest user data
+  React.useEffect(() => {
+    refreshUser().catch(error => {
+      console.error("Error refreshing user data:", error);
+    });
+  }, [refreshUser]);
 
   // Use React's useEffect to handle navigation to avoid direct DOM manipulation
   React.useEffect(() => {
@@ -62,8 +69,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Create a wrapper for the auth page that redirects when logged in
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
   const [, navigate] = useLocation();
+
+  // Also add refresh to auth route for consistency
+  React.useEffect(() => {
+    refreshUser().catch(error => {
+      console.error("Error refreshing user data:", error);
+    });
+  }, [refreshUser]);
 
   // Use React's useEffect to handle navigation to avoid direct DOM manipulation
   React.useEffect(() => {
@@ -96,6 +110,25 @@ function App() {
   );
 }
 
+// Route wrapper that forces data refetch on navigation
+function DataRefreshRoute({ path, component: Component }: { path: string, component: React.ComponentType }) {
+  // Force fresh data on mount by setting a key based on the path
+  const currentLocation = useLocation()[0];
+  const isActive = currentLocation === path;
+  
+  // This will cause the component to remount when navigating back to it
+  return (
+    <Route path={path}>
+      <ProtectedRoute>
+        {/* Using a key here forces a remount of the component, causing it to refetch data */}
+        <div key={`page-${path}-${Date.now()}`}>
+          <Component />
+        </div>
+      </ProtectedRoute>
+    </Route>
+  );
+}
+
 // App content wrapped by providers
 function AppContent() {
   const { alerts, dismissAlert } = useBudgetAlerts();
@@ -109,47 +142,14 @@ function AppContent() {
           </AuthRoute>
         </Route>
 
-        <Route path="/">
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/transactions">
-          <ProtectedRoute>
-            <TransactionsPage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/budgets">
-          <ProtectedRoute>
-            <BudgetsPage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/bills">
-          <ProtectedRoute>
-            <BillsPage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/ai-insights">
-          <ProtectedRoute>
-            <AiInsightsPage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/accounts">
-          <ProtectedRoute>
-            <AccountsPage />
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/profile">
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        </Route>
+        {/* Use the DataRefreshRoute wrapper for all pages to ensure data is refreshed */}
+        <DataRefreshRoute path="/" component={HomePage} />
+        <DataRefreshRoute path="/transactions" component={TransactionsPage} />
+        <DataRefreshRoute path="/budgets" component={BudgetsPage} />
+        <DataRefreshRoute path="/bills" component={BillsPage} />
+        <DataRefreshRoute path="/ai-insights" component={AiInsightsPage} />
+        <DataRefreshRoute path="/accounts" component={AccountsPage} />
+        <DataRefreshRoute path="/profile" component={ProfilePage} />
 
         <Route>
           <NotFound />

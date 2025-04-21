@@ -1068,12 +1068,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const nextBillData = {
               name: newBillData.name,
               amount: newBillData.amount, 
-              dueDate: nextDueDate,
+              dueDate: newBillData.dueDate,
               originalStartDate: newBillData.originalStartDate || new Date(newBillData.dueDate),
               recurringPeriod: newBillData.recurringPeriod,
               userId: req.user._id,
               categoryId: newBillData.categoryId,
-              isPaid: false,
+              isPaid: true,
               notes: newBillData.notes || '',
               reminderDays: newBillData.reminderDays || 3
             };
@@ -1131,7 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const nextBillData = {
           name: bill.name,
           amount: bill.amount,
-          dueDate: nextDueDate,
+          dueDate: bill.dueDate,
           originalStartDate: originalStartDate,
           recurringPeriod: bill.recurringPeriod,
           userId: bill.userId,

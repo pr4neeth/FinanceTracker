@@ -43,7 +43,6 @@ export default function SimpleAuthPage() {
   const handleRegister = async (data: any) => {
     try {
       await register(data);
-      navigate('/');
     } catch (error) {
       console.error('Registration failed', error);
     }

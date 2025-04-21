@@ -441,7 +441,6 @@ export default function BillsPage() {
                 <TabsList>
                   <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
                   <TabsTrigger value="paid">Paid</TabsTrigger>
-                  <TabsTrigger value="autopay">Auto-Pay</TabsTrigger>
                   <TabsTrigger value="all">All Bills</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -599,8 +598,7 @@ export default function BillsPage() {
                   <h3 className="text-lg font-medium mb-2">No Bills Found</h3>
                   <p className="text-neutral-500 mb-4">
                     {activeTab === "upcoming" ? "You don't have any upcoming bills." : 
-                     activeTab === "paid" ? "You don't have any paid bills yet." :
-                     activeTab === "autopay" ? "You don't have any bills with auto-pay enabled." :
+                     activeTab === "paid" ? "You don't have any paid bills yet.":
                      "You haven't added any bills yet."}
                   </p>
                   <Button onClick={openNewBillDialog}>Add Your First Bill</Button>
@@ -781,26 +779,6 @@ export default function BillsPage() {
                 />
                 
                 <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="autoPayEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                          <FormLabel>Auto-Pay</FormLabel>
-                          <FormDescription className="text-xs">
-                            Automatically mark as paid
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
                   
                   <FormField
                     control={form.control}
